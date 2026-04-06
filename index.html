@@ -262,6 +262,59 @@
     }
     .speaking-dots span:nth-child(1) { animation-delay: -0.32s; }
     .speaking-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    /* ---- MOBILE ---- */
+    @media (max-width: 600px) {
+      header {
+        padding: 8px 12px;
+        gap: 8px;
+      }
+
+      header h1 { font-size: 1rem; width: 100%; }
+
+      .toolbar-group { flex-wrap: wrap; width: 100%; }
+
+      #char-selector button { padding: 4px 10px; font-size: 0.78rem; }
+
+      #char-other-select, #scene-select {
+        max-width: 100%;
+        width: 100%;
+        font-size: 0.82rem;
+      }
+
+      .spacer { display: none; }
+
+      #scene-indicator { width: 100%; text-align: right; font-size: 0.78rem; }
+
+      .main-container { padding: 8px; }
+
+      #history {
+        min-height: 200px;
+        max-height: calc(100vh - 380px);
+        padding: 10px;
+      }
+
+      .dialogue-text, .dialogue-hidden { font-size: 0.95rem; }
+      .character-name { font-size: 0.78rem; }
+
+      #controls { padding: 10px; gap: 8px; }
+
+      .btn-row { flex-wrap: wrap; }
+      .btn-row button { padding: 8px 14px; font-size: 0.85rem; }
+      #btn-start, #btn-done { min-width: 100%; }
+
+      #speed-control {
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 0.78rem;
+      }
+
+      #speed-control input { width: 80px; }
+
+      #speed-control label { white-space: nowrap; }
+
+      .keyboard-hint { font-size: 0.68rem; }
+    }
   </style>
 </head>
 <body>
