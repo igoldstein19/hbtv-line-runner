@@ -1,0 +1,5220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HBTV Line Runner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- TOOLBAR ---- */
+    header {
+      background: #16213e;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 2px solid #0f3460;
+      flex-wrap: wrap;
+    }
+
+    header h1 { font-size: 1.2rem; color: #e94560; white-space: nowrap; }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toolbar-label {
+      color: #888;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .toolbar-group button, .toolbar-group select {
+      padding: 5px 12px;
+      border: 1px solid #333;
+      background: #16213e;
+      color: #a8a8b8;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+    }
+
+    .toolbar-group button.active {
+      background: #e94560;
+      color: white;
+      border-color: #e94560;
+    }
+
+    /* Character buttons */
+    #char-selector button.active[data-char="andy"] { background: #8B6914; border-color: #ffd700; color: #ffd700; }
+    #char-selector button.active[data-char="mia"] { background: #6b1a3a; border-color: #ff6b9d; color: #ff6b9d; }
+    #char-selector button.active[data-char="sam"] { background: #1a4a3e; border-color: #4ecca3; color: #4ecca3; }
+    #char-selector button.active[data-char="leo"] { background: #1a3a5e; border-color: #45b7d1; color: #45b7d1; }
+
+    #char-other-select {
+      background: #16213e;
+      color: #a8a8b8;
+      max-width: 160px;
+    }
+
+    #char-other-select.active {
+      background: #3a2a1a;
+      border-color: #ff8c42;
+      color: #ff8c42;
+    }
+
+    #scene-select {
+      background: #16213e;
+      color: #a8a8b8;
+      max-width: 260px;
+    }
+
+    .spacer { flex: 1; }
+
+    #scene-indicator {
+      font-size: 0.85rem;
+      color: #a8a8b8;
+      white-space: nowrap;
+    }
+
+    /* ---- MAIN ---- */
+    .main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    #history {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      padding: 16px;
+      background: #16213e;
+      border-radius: 8px;
+      min-height: 300px;
+      max-height: calc(100vh - 300px);
+    }
+
+    .line-entry {
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      transition: opacity 0.3s;
+    }
+
+    .line-entry.spoken { opacity: 0.5; }
+    .line-entry.current { opacity: 1; background: #1a1a3e; border-left: 3px solid #e94560; }
+    .line-entry.upcoming { opacity: 0.3; }
+
+    .character-name {
+      font-weight: bold;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .dialogue-text {
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
+
+    /* My-line styling */
+    .line-entry.my-line { background: #2a1a3e; border-left: 3px solid #ffd700; }
+    .line-entry.my-line .character-name { color: #ffd700; }
+
+    /* Hidden line (for memorization) */
+    .dialogue-hidden {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      color: #555;
+      font-style: italic;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .dialogue-hidden:hover { color: #777; }
+
+    .btn-reveal {
+      display: inline-block;
+      padding: 3px 10px;
+      margin-left: 8px;
+      background: #333;
+      color: #999;
+      border: 1px solid #555;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-family: inherit;
+      vertical-align: middle;
+    }
+
+    .btn-reveal:hover { background: #444; color: #ccc; }
+
+    .scene-header {
+      text-align: center;
+      padding: 16px;
+      margin: 20px 0;
+      color: #e94560;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-top: 1px solid #333;
+      border-bottom: 1px solid #333;
+    }
+
+    .song-marker {
+      text-align: center;
+      padding: 10px;
+      margin: 12px 0;
+      color: #a8a8b8;
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+
+    /* ---- CONTROLS ---- */
+    #controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      background: #16213e;
+      border-radius: 8px;
+    }
+
+    #status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #status-text { font-size: 1rem; color: #a8a8b8; flex: 1; }
+    #status-text.your-line { color: #ffd700; font-weight: bold; font-size: 1.1rem; }
+    #status-text.speaking { color: #4ecca3; }
+
+    .btn-row { display: flex; gap: 8px; }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+
+    #btn-start { background: #4ecca3; color: #1a1a2e; font-weight: bold; flex: 1; }
+    #btn-start:hover { background: #3db890; }
+
+    #btn-done { background: #ffd700; color: #1a1a2e; font-weight: bold; flex: 1; font-size: 1.1rem; display: none; }
+    #btn-done:hover { background: #e6c200; }
+
+    #btn-stop { background: #e94560; color: white; }
+    #btn-stop:hover { background: #d13a52; }
+    #btn-stop:disabled { background: #555; color: #888; cursor: default; }
+
+    #btn-pause { background: #555; color: white; }
+    #btn-pause:hover { background: #666; }
+
+    #btn-skip { background: #444; color: #aaa; }
+    #btn-skip:hover { background: #555; }
+
+    #speed-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    #speed-control input { width: 120px; }
+
+    #voice-loading { text-align: center; padding: 40px; color: #888; }
+
+    .keyboard-hint { font-size: 0.75rem; color: #666; text-align: center; margin-top: 2px; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .pulse { animation: pulse 1.5s infinite; }
+
+    @keyframes speaking-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    .speaking-dots span {
+      display: inline-block; width: 6px; height: 6px; margin: 0 2px;
+      background: #4ecca3; border-radius: 50%;
+      animation: speaking-dot 1.4s infinite ease-in-out both;
+    }
+    .speaking-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .speaking-dots span:nth-child(2) { animation-delay: -0.16s; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>HBTV Line Runner</h1>
+
+    <div class="toolbar-group" id="char-selector">
+      <span class="toolbar-label">I am:</span>
+      <button class="active" data-char="andy">Andy</button>
+      <button data-char="mia">Mia</button>
+      <button data-char="sam">Sam</button>
+      <button data-char="leo">Leo</button>
+      <select id="char-other-select"><option value="">Other...</option></select>
+    </div>
+
+    <div class="toolbar-group">
+      <span class="toolbar-label">Scene:</span>
+      <select id="scene-select"><option value="0">-- Select Scene --</option></select>
+    </div>
+
+    <div class="spacer"></div>
+    <div id="scene-indicator">Ready</div>
+  </header>
+
+  <div class="main-container">
+    <div id="history">
+      <div id="voice-loading">Loading script & voices...</div>
+    </div>
+
+    <div id="controls">
+      <div id="status-bar">
+        <div id="status-text">Pick a character and scene, then press Start</div>
+        <div class="speaking-dots" style="display:none"><span></span><span></span><span></span></div>
+      </div>
+      <div class="btn-row">
+        <button id="btn-start">Start Scene</button>
+        <button id="btn-done">Done - Continue (Space)</button>
+        <button id="btn-stop" disabled>Stop</button>
+        <button id="btn-pause">Pause</button>
+        <button id="btn-skip">Skip</button>
+      </div>
+      <div id="speed-control">
+        <label>Speed:</label>
+        <input type="range" id="speed" min="0.5" max="1.5" step="0.1" value="1.0">
+        <span id="speed-val">1.0x</span>
+        <label style="margin-left:16px">Pause (s):</label>
+        <input type="range" id="pause-dur" min="0.3" max="3.0" step="0.1" value="1.0">
+        <span id="pause-val">1.0s</span>
+      </div>
+      <div class="keyboard-hint">Space = Done / Continue | P = Pause | S = Skip | Esc = Stop</div>
+    </div>
+  </div>
+
+<script>
+// ==================== SCRIPT PARSER ====================
+
+const SCRIPT_TEXT = `﻿Act 1
+The HB(TV) Show: Act 1
+[a]Version: January 24, 2026 - Final.
+________________
+Scene 1: ‘Welcome to HBTV!’[b]
+Characters: Mia, Leo, Samantha, Andy, Dean Datar, Stagehand        
+
+
+Location:[c] A lone spotlight shines on Mia, Samantha, and Andy, who are waiting backstage at a Late-Night show set. They speak in hushed tones, visibly nervous yet excited. A Stagehand walks by, signaling the show is about to start.
+
+
+Stagehand[d]
+Alright folks[e] - we’re live with Dean Datar in 30 seconds![f]
+
+
+Timer starts counting down from 30[g]
+
+
+Mia[h]
+I’ve waited my whole life for this, I can’t believe we’re at Harvard……
+
+Sam[i]
+We’re gonna be famous.[j] 
+
+
+Andy[k]
+Uh, I love reality TV. When I was overseas, my whole platoon and I would watch Drag Race reruns.
+
+
+Leo (running over)[l]
+Wait!..Do these pants make my butt look big? 
+
+
+Stagehand[m] (looks over, deadpan)
+Yes.
+
+
+Leo
+Oh thank god.
+
+Timer expires[n]
+The lights go out briefly. Then, the lights come up, shining on a Late-Night show set with Dean Datar as host. The band plays him in. His desk is to stage left and a big couch is on stage right.
+
+
+Dean Datar[o]
+Good evening. I’m Dean Datar, and I’m thrilled to welcome you to the first season of HBTV!
+
+
+Applause sign lights up.[p] The crowd goes wild.[q]
+
+
+Dean Datar[r]
+Opening monologue time! Soooo, we tried our best to cut costs — but no longer providing catering at Weekend sprints only goes so far. Pressure from the Trump administr—(covers mouth, touches earpiece)—outside sources made balancing the books hard for lil’ ol’ Dean D. Phew. Almost pulled a Kimmel.
+
+
+So I did what any dean would do: sat in on RC Strategy to see if this tuition you all pay is actually worth it. Verdict? Questionable. But I did learn one thing: if a company is unprofitable, you can always sell it for its “potential profits.”
+
+
+So I hired Goldman, and one bidding process later, NetflixTokGPT acquired us. Turns out broadcasting the drama-filled lives of our students is extremely monetizable! Move over Stranger Things weirdos, and say hello to HBS overachievers!
+
+
+But enough about me. Let’s give it up for the main characters of this year’s show — hand picked  for their insecurity — (catches himself) — star potential!
+
+
+Andy walks on stage, excited and waving to the crowd.[s][t]
+
+
+Dean Datar[u]
+Our first RC is a proud veteran from middle America, which I’ve never been to because of its low fundraising potential. He’s survived war AND the SFP housing lottery. Give it up for Andy!
+
+
+Andy (salutes)[v]
+Honored to be here, sir!
+
+
+Dean Datar[w]
+Next, from New Jersey - a former Forbes 30 under 30 who’s always looking to make the right impression on the right people. Before HBS, she spent four years at her startup, success.ai. May it rest in failure. (places hand on chest) [x]Give it up for Samantha!
+
+
+Sam strides in, grinning to the crowd and sits down.[y]
+
+
+Sam
+Wow, so great to be here! (Leans into Dean Datar, whispering) I thought I asked you to cut the part about my failed startup? Who’s watching this again?[z]
+
+
+Dean Datar
+Well Samantha, you're live on all streaming platforms worldwide thanks to our generous investors at NetflixTokGPT.[aa]
+
+
+Sam (grimly)
+Oh, perfect.
+
+
+Dean Datar
+Our next RC is an international who spends more time on Hinge than in Aldrich. Like all internationals, we won’t know where he’s from until flag day. Give it up for our romance obsessed, ethnically ambiguous, consultant, Leo! 
+
+
+Leo walks in with swagger.[ab]
+
+
+Leo
+Ah, bonsoir… or hola… el Deaño, if I’d known there were so many beautiful ladies, I’d have worn a deeper V-neck…[ac]
+
+
+Andy[ad]
+Don’t worry we’ve seen enough of your chest hair, man. I’m Andy, a vet from Mississippi. (He reaches over to shake Leo’s hand)[ae]
+
+
+Leo
+That’s amazing! I love animals. [af]
+
+
+Dean Datar[ag]
+Ok moving on…let’s welcome our last RC. Boston born, and Ivy-league bred, IB and PE were inevitable for this obvious HBS admit. If she sees a career ladder, she climbs it - just don’t ask her why (chuckling). Give it up for Mia!
+
+
+Mia walks out, waves, shakes Dean Datar’s hand.[ah]
+
+
+Mia[ai]
+This is such a big audience Dean Datar! Maybe not as big as Reese Witherspoon’s (mutters to herself), but big! What a dream to make it to HBS.
+[aj]
+
+
+Dean Datar
+Thank you all for joining us (gestures to audience). This season is sure to be the best season yet. 
+
+
+Andy
+Isn’t this the first season?
+
+
+Dean Datar
+Yes it is. Thank you, Captain Obvious. 
+
+
+Andy
+It’s First Lieutenant Obvious, actually. 
+
+
+Dean Datar (laughing)
+And that’s why we love our 3Ms at HBTV: McKinsey, Mormons, and the Military. 
+
+
+Now — down to business. Update for the cast! We’ve removed the institution of Baker scholars! 
+
+
+Mia
+What! Ever since I was a kid, I’ve always dreamed about being a Baker scholar…
+
+
+Sam
+What kind of sociopath dreams about a meaningless award like that when they’re a kid?
+
+
+Mia
+No such of sociopath dreams about a meaningless award, Samantha? Have you seen the chair they get to sit in?
+Dean
+Ahem. As I was saying, instead of Baker scholars, at the end of this season our main characters will compete to be crowned HBS Idol [ak]— HBTV’s premier achievement!
+
+
+Mia,[al] you’ve survived private pre-school and 5 years in fi-NANCE. Do you have what it takes to be the first HBS Idol?
+
+
+Mia (eager)
+Oh thank God, another award option. Of course I have what it takes. How else will I get my affirmation? Don’t wanna be average like a Wharton MBA.
+
+
+Dean Datar
+Hmm. Maybe we shouldn’t have cut hours for the therapy dog.
+What about you, Samantha?
+
+
+Sam
+This is a popularity contest, right? I can’t imagine being more qualified.
+
+
+Andy[am] 
+Sam’s right — everyone here is so talented. I’m in my mid-30s and haven’t had a job outside the military, so I’m just here to learn. By the way, do any of you know how to use Excel?
+
+
+Leo[an]
+You’re a hero, man. I didn’t know vets fought wars for the animals.
+
+
+Everyone looks confused, but no one corrects him.[ao]
+
+
+Leo
+As for me, thanks for asking Mr. Deaño, I’m here looking for love, for the Debbie to my Mark Lovich… (4th wall break)- and maybe a visa.
+
+
+Dean Datar
+Romance! A worthwhile pursuit, Leonardo. 
+
+
+Folks, that marks the end of our first show. This season, you’ll[ap] watch our stars compete against each other across the many rites of passage of HBS. But only one student will win HBS Idol.
+
+
+Who will it be? 
+Leo, Andy, Mia Sam
+Find out this season on HBTV!
+[aq][ar][as]
+
+
+[Song: TikTok, Singers | 4 Protagonists + Dean, Goal | Intro the HBTV World/Characters]
+________________
+Scene 2: ‘Family Feud’
+Characters: Mia, Andy, Leo, Samantha, Steve Harvey, Network Executive #1, Exec Intern
+
+
+Location:[at] An Aldrich classroom, dressed as a game show set. Our protagonists wait awkwardly as Steve Harvey opens the show.[au]
+
+
+Steve Harvey[av]
+Hello, HBS students! For those of you who don’t know me, I’m Steve Harvey — host of Family Therapy—uh—Feud! I’m also your section chair this year!
+
+
+Mia (whispers to Sam)
+I thought professors were our section chairs?
+
+
+Sam (touching up lipstick and taking out makeup)[aw]
+I heard they’re replacing some professors with actual TV hosts.[ax] Apparently not all of them are good TV. They keep cutting off spicy takes to manage stupid things like double dipping.
+
+
+Leo
+They could never take away Andy[ay] and me’s twice-a-day Shad hot tub skinny dips.
+
+
+Andy
+Leo! Those are private.[az] But agreed — I don’t get why people don’t get to speak twice in 90 minutes. Are we kids?
+
+
+Steve
+Excuse me? Did you raise your hand? (Andy shakes his head)[ba]. Go take a timeout. (Andy goes and stands in a corner)[bb][bc]. Let’s move on to Section Squabble! It’s like Family Feud — but if some of your family members secretly slept together.
+
+
+Two teams face off. Team Double Dippers, Andy and Mia and Team Baked Scholars, Sam and Leo[bd].
+[be]
+ 
+Mia
+I am so ready. I reviewed the case[bf], the optional reading, and the footnotes!
+
+
+Leo
+Damn, footnotes? And I thought I was into feet. What if we lose Idol and I never find mi amore?
+ 
+Sam
+Relax. I created a ChatGPT agent that takes the case and produces a summary for cold calls. No one else has this proprietary technology. (hands Leo a paper)[bg]
+ 
+Leo
+I think every other RC has this exact copy of notes…
+
+
+Sam
+Really? Shit. I hope no one asks follow-ups.
+ 
+Steve Harvey
+Alright, you know how this goes. [bh]Before the show, we surveyed the entire HBS audience (gestures to audience). We ask you the same question we asked them, you guess their answers! The most popular ones are on the board.
+ 
+First question. What is the best place to make a new connection as an RC?
+ 
+Mia and Sam buzz in[bi][bj], but Mia is slightly faster
+ 
+Mia
+ In the Aldrich bathroom between classes.(Everyone stares).[bk]
+ 
+Mia
+What? The line is always so long - facilities didn’t anticipate so many women being allowed to go here. Such a captive audience for my business cards.
+ 
+Steve Harvey
+Guess we know what’s been clogging up the toilets! Show us “Bathroom Prospecting”[bl]. This answer shows up on the board.[bm] Alright Sam, you’re next - where else should RCs be networking?
+
+
+Sam
+The super-exclusive section pre-pre-game to Gatsby, obviously.
+
+
+Leo
+That sounds amazing! How do you get invited to those?
+
+
+Sam
+Uh… I haven’t figured that out yet. I joined the secret section group chat, but apparently there’s an even smaller hot girls group chat I haven’t cracked.
+
+
+Steve Harvey[bn]
+Show me “Be Already Popular”!  Loud incorrect buzzer.[bo] 
+Andy, where have you been meeting people?[bp]
+
+
+Andy (pondering)
+I’ve been scheduling coffee chats in Spangler… but people keep “rescheduling” after I wait 15 minutes.
+
+
+Steve Harvey
+The survey says “Saying we should grab coffee sometime!” (Board shows up with “Coffee chat.”) That leaves just you, Leo.[bq]
+
+
+Leo
+I’m old-fashioned, Steve. I’ve spent hundreds buying my way out of Hinge Rose Jail. If the algorithm says I need to pay for my best match, who am I to argue?
+
+
+Steve Harvey
+Show us “Failed Flirting to Friends” Loud incorrect buzzer. [br]
+ Andy and Mia in the lead! [bs]Moving on to our next question - what is the most underutilized resource at HBS?
+
+
+Sam hits the buzzer almost instantly.
+
+
+Sam
+(In a rush) The condiments in Spangler! Did you know they hide the peanut butter in the lower cabinets during breakfast? Trying to stop free PB&Js. These cost cuts are insane.
+
+
+Leo
+(defeated): Dammit, Sam. Now they’re gonna take those too — like our textbooks.
+
+
+Steve Harvey
+Let’s see what the people say… The board shows up “Condiment Swiping” at #2.[bt] Sam looks a little upset and abashed at having revealed her penny-pinching secrets.
+
+
+Steve Harvey
+Mia, what are students missing out on?
+
+
+Mia
+Honestly? Talking to the librarians. They’re incredibly helpful and so desperate for human connection.
+
+
+Sam (a bit vindictively)
+Sounds like they’re not the only ones.
+
+
+Leo (intrigued)
+Maybe I will go to Baker. But are the librarians sexy? I have a type you know. (Sam rolls her eyes)
+
+
+Steve Harvey
+Board show us ‘Library Lounging’! Loud incorrect buzzer.[bu]
+
+
+Steve Harvey
+Leo, redeem yourself.[bv] What do you think more HBS folks should know about?
+
+
+Leo:
+The Japanese toilet on the third floor of Aldrich.
+
+
+Andy
+Leo, stop telling everyone all the good stuff! That’s a secret.
+
+
+Steve Harvey
+Give us ‘Twinklin Tinklin’! The board shows McCulloch Backup Bathroom as #1.[bw]
+
+
+Steve Harvey
+Looks like Sam and Leo are catching up! Andy, bring us home.
+
+
+Andy:
+Not enough people use the glute machine at Shad. Men are afraid of it, and frankly, the butts could use some work.
+
+
+Steve Harvey
+Let’s see what the HBS students have to say about ‘Shad King Behaviour’! Loud incorrect buzzer plays.[bx]
+
+
+Steve Harvey
+With an impressive comeback, we’re tied![by]
+Can Mia and Andy turn things around — like every female lead protagonist? Or will Sam and Leo keep the momentum?[bz]
+
+
+The cameras stop rolling, the lights come up.[ca][cb]
+
+
+Mia
+What the hell? I can’t believe we’re tied. If only I’d studied a couple more hours…
+
+
+Andy
+Don’t beat yourself up, Mia. We have three more rounds.
+
+
+Steve Harvey
+Speaking of rounds — let me introduce… the Idol Scoreboard.[cc]
+(Reveals scoreboard: Mia #1, Sam #2, Leo #3, Andy #4.)
+Whoever finishes #1 performs at Idol. Whoever’s a 4… hits the screen.
+
+
+Mia (forced laugh)
+A ratings system. Love knowing exactly where I stand. (to herself) I’ve gotta stay at one.
+
+
+Network Executive #1 (coming on stage)[cd]
+Alright listen up, everyone.(speaking into headset,[ce] as though to crew) I’m going to need some better lighting on Andy, the gays always boost ratings, did you watch Heated Rivalry? I’m going to need someone in audio to figure out where the hell Leo is from. And can we fix the audio on Mia, she’s sounding a bit…screechy.
+
+
+Sam
+I think that's just her voice.
+
+
+Network Executive #1
+ And can we make Sam the social chair? She seems just insecure enough to plan something problematic and unaffordable. NetflixTokGPT is committed to making them all stars, but they need to bring the magic. Clear? 
+
+
+The Network Exec walks off, with our protagonists and their teams coming together.[cf]
+
+
+Mia
+Uh…who was that?
+
+
+Leo
+I heard she’s one of the Network Execs in charge of producing HBTV. They juice the ratings.
+
+
+Andy
+Jeez. How do you know all this?
+
+
+Leo
+A 2+2 student talked about it on Reels. She went viral — then decided not to come because being an influencer had better ROI.
+
+
+Mia
+Encouraging. What’s next on this godforsaken RC schedule?
+
+
+Sam (stressed)
+Retreat! And I haven’t planned it yet!
+
+
+Exec Intern[cg]
+Why are you still on set? We need to set up for ‘Real Housewives of SFP’… The moms are fighting over who can use the Common Room for a birthday party. Scram!
+
+
+Our protagonists exit the stage.[ch]
+________________
+Scene 3: ‘Survivor - Section Retreat’
+
+
+Characters: Sam, Mia, Leo, Andy, Ranjay Gulati (Host), Frederik (Section X-1), Delilah (Section X-2), Lydia (Section X-3), Annie (Section Partner), Delivery Driver
+
+
+Location: Our main characters Sam, Mia, Leo, Andy, roll up with suitcases to what appears to be a forest, surrounded by palm trees [ci]and tiki torches.
+[cj]
+
+
+Mia
+Thank God we made it. One more hour in that car and I was going to have to start asking questions beyond “So what did you do before HBTV?”
+
+
+Leo[ck]
+I didn’t mind the ride. It’s hard to get uninterrupted time with our popular social chair. (rubs shoulders with Sam)
+
+
+Sam
+Lay off Leo. I’ve got a lot on my mind this weekend (looks around[cl]). Has anyone seen Fred and his Section X friends arrive yet?
+
+
+Andy
+I’m just excited to be outside. I think our windowless Aldrich classrooms are giving me seasonal affective disorder.
+
+
+Ranjay Gulati (Booming)
+[cm]
+Welcome to Survivor: Section Retreat — HBTV’s premier social-round competition. I’m your host, Organizational Behavior Professor… Ranjay Gulati.
+
+
+Mia
+Professor Gulati—so great to meet you. But isn’t this a student-only event?
+
+
+Ranjay Gulati
+After my breakout performance at EC Kickoff, the Network felt America deserved more. And frankly, redemption takes courage.
+
+
+Andy
+Survivor! Finally something where my work experience directly applies.  
+
+
+Ranjay
+The rules are simple.
+
+
+Step one: Two tribes compete in challenges. Best two out of three is safe.
+
+
+Step two: The losing tribe goes to Tribal Council… and votes someone off HBTV.[cn]
+
+
+Any questions?
+
+
+Mia
+Wait, our peers get to choose who stays and leaves? 
+
+
+Sam
+Guess someone could have benefitted from taking that stick out of her-
+
+
+Ranjay
+Don’t worry, as long as you buy my book (holds up book)[co], you’ll be fine. Let’s meet our tribes. First up…Tribe X!
+
+
+We see Fred X, Delilah X, and Louisa X enter the scene dressed to the nines, also holding bags.[cp]
+
+
+Fred X (looking around)[cq]
+Looks…Interesting! I thought we were going to White Lotus?
+
+
+Sam (rushing over)[cr]
+Fred! Welcome! I wasn’t sure you guys were coming—you didn’t respond to my DMs.
+
+
+Lydia
+Oh yes, the school’s service team. Excellent. (hands Sam her bag)[cs] Could you take this to my room?
+
+
+Sam
+Er, I mean, that’s not really what social chairs do…but sure. Any more room on your team?
+
+
+Ranjay
+And our second tribe…the Normies[ct]!
+
+
+Leo (waving and smiling)[cu]
+No one’s called me normal in years.
+
+
+Sam
+Wait, we’re the normies? But I insisted on being with Fred and his friends.
+
+
+Delilah
+We added a separate tab on the sign up Excel, that’s hidden (4th wall break)[cv]...for just our names.
+
+
+Ranjay Gulati
+Round 1, find food - sponsored by (checks notes)[cw], TourHero! Man, they’re really expanding past Colombia. Tribes, pick your representatives.
+
+
+Mia
+We paid $1000 dollars to be here and TourHero didn’t include food? 
+
+
+Sam
+Mia, Treks don’t include food, you didn’t pay for the optional add ons. I swear no one reads their email at this school. 
+
+
+Leo
+Yeah - lay off Sam. It's a lot of pressure to be on section leadership. Who else can spend funds with no transparency. 
+
+
+Andy (sympathetic)
+Plus she had to set up Venmo AND Zelle. I still don’t think our sections Canadians have paid yet!
+
+
+Ranjay
+Normies appear to be volunteering. Begin!
+
+
+Mia [cx][cy]
+I had a feeling this might happen. (Pulls out burner, pan, ingredients from her suitcase). Always be prepared!...I was the top girl scout in Massachusetts. Mia starts cooking but clearly doesn’t know what she’s doing - opportunity for physical comedy.
+
+
+Leo
+What the hell are you doing? I’ve only ever seen you eat chicken tenders from Spangler.
+
+
+Mia
+Gotta save time. Plus, why are they so good?!
+
+
+Leo
+ I’ve got this. If we just combine this…with that…Boom. [cz]
+
+
+Sam (Leo puts a spoon in her mouth. Shocked, she takes a bite)[da]
+Leo…that’s actually really good. Where did you learn that?
+
+
+Leo (smiling)
+Just helping mom around the house. Maybe I can cook sometime for you, chica? [db]
+
+
+Ranjay
+Tribe X - your representative?
+
+
+Tribe X huddles. Lydia steps forward, already on her phone.[dc]
+
+
+Lydia (calling)[dd]
+Hi Doordash? Yes - catch of the day from Nobu. Thank you.
+
+
+Tribe X
+Doordash, Doordash, Doordash!
+
+
+Mia
+We’re in the middle of the woods in Vermont.
+
+
+Sam (admiringly)
+They’re…so resourceful.
+
+
+Sound of a helicopter. A delivery driver sprints onstage, hands box to Lydia.[de][df]
+
+
+Lydia (spraying hand sanitizer)[dg]
+Thank you, love.
+
+
+Ranjay
+Delicious…point to Tribe X! Round 2, grow your tribe.
+
+
+Mia[dh]
+There’s literally no one else here.
+
+
+Ranjay
+Wrong - mystery guest, please come out.
+
+
+Annie enters center stage.[di]
+
+
+Annie
+Hi everyone!
+
+
+Leo
+Who is that?
+
+
+Mia
+Wait…is that a…?
+(duh, duh duh - sound)
+
+
+Sam
+Partner…crap, I forgot she signed up. I can never remember her name…
+
+
+Ranjay
+Each tribe sends one representative. First to recruit her wins the round.
+
+
+Delilah (approaching)
+Miss…where do I know you from?
+
+
+Annie (earnest)
+Delilah! My partner brought me in for the SpaceX case, you took a picture with me for your instagram! I’m an astronaut.
+
+
+Delilah (losing interest)
+Hmmm. I don’t remember meeting you. Do you know Elon?
+
+
+Annie
+Never met him, but I heard he’s kind of a dic-
+
+
+Delilah
+And I’m bored. Toodaloo! (walks away).
+
+
+Andy (walking over[dj])
+ANNIE! It’s Andy! It’s good to see you!
+
+
+Annie (lighting up)
+Andy! From the double date with Kris and your husband! How are you? (She walks to the normies[dk])
+
+
+Mia, Sam, Leo all high five Andy
+
+
+Mia
+Andy, that was amazing. I don’t think I’ve ever seen someone remember a partner’s name before…
+
+
+Ranjit
+Point to the Normies! Ok final challenge, find shelter. Winning tribe wins 2 to 1 and is safe from elimination.
+
+
+Andy 
+Sam - I think that just leaves you! You’ve got this.
+
+
+Sam (thinking, then moving fast[dl])
+Okay. Okay (picks up drift wood[dm])
+
+
+Leo
+Sam, what are you doing? We need shelter!
+
+
+Sam
+Calmate, Leonardo. I’m putting something together.
+She assembles driftwood quickly—reveals a tent.
+Voila.[dn]
+
+
+Andy
+Wow soldier - I haven’t seen speed like that, since some of the vets tried drugs at HBS for the first time... Where’d you learn that?
+
+
+Sam (quietly)
+I camped a lot as a kid. (leans in) It was kind of the only thing my family could afford.
+
+
+Ranjit[do]
+Tribe X - your shelter?
+
+
+Fred X (frantic - grabbing Lydia’s cellphone)[dp]: 
+Hello DoorDash? Can you deliver a house? Wow only 7-to-10 business days to close?!  You must be financing it with Leader Bank’s Purchase Pass Program for the 10-day closing guarantee, upfront commitment letter, and appraisal protection – not to mention their world-class service!
+I’ll take that for my Lake House, but what to do for now…(turning to Sam). Samantha? Right?[dq]
+
+
+Sam (Looking up from huddle with Andy)
+Yes…Fred! I’m Samantha. (Says to herself) - wow, they know my name!
+
+
+Fred X
+We seem to be having trouble with accommodations. You want to be a helpful social chair, don’t you? Can we bunk with you?
+
+
+Sam (no hesitation)
+Of course! Please, come in. There’s plenty of room, I’ll find somewhere else for the normies.
+
+
+Mia
+What the hell are you doing, Sam?[dr]
+
+
+Leo
+Not cool.
+
+
+Fred
+[ds]
+Thank you, Samantha. Perhaps you can hang out with us for 15 minutes later. I’ll send you a link to my calendly.
+
+
+Ranjit (confused)
+Point to Tribe X I guess? They are the winners! 
+
+
+Tribe X cheers and disappears off stage as Sam waves to them.[dt][du]
+
+
+Ranjit
+Now, Normie Tribal council. Vote amongst yourselves. Who will you eliminate from HBTV?[dv]
+
+
+Mia
+I hate to be the one to point out the obvious[dw]—
+
+
+Sam
+Hasn’t stopped you before, Mia.
+
+
+Mia
+But Sam has got to go!
+
+
+Andy (pulling Sam aside)
+[dx]
+Give her a second. Sam why did you do that? We're about to win.
+
+
+[Song: Stick Season, Singers | Sam + Xers, Goal | Sam Exposition/HBS Social Dynamics]
+
+
+Sam
+Andy, you guys don’t know this but…after the startup failed I was broke. We ran out of funding. My employees left. I had no friends.         I just need to know I’ll have people-if things go wrong like that again. Playing the long game.
+
+
+Leo
+See Mia, she didn’t mean it. She just got caught up in the moment!
+
+
+Andy
+Sam, I get it. I know what it’s like to have to make tough calls. And in the Army, we always stick with our troops. Guys, if you vote Sam off, I go too.
+
+
+Network Executive #2 comes on stage, moves Sam to 1 on the board, leaving Mia at 2, Leo at 3 and Andy at 4.[dy]
+
+
+Ranjay
+Irrelevant! The fan ratings are in—and people love the way Sam tried to network her way into Tribe X by screwing over her own team. High engagement! The Network execs refuse to let her leave the show.
+
+
+Mia (fearful)
+So… what happens now? Am I in danger of being kicked off?
+
+
+Ranjay
+Nah. With GSB poaching our students, we really can’t afford to lose ratings hits like you. But keep producing…(or else.) That’s all for now, folks. Next up on HBTV—perhaps the hardest challenge yet: romance.[dz]
+Scene 4: ‘Love is Blind’
+Characters: [ea]Mia, Leo, Sam, Andy, Nick Lachey, Vanessa Lachey, Mary Metrix, Nicole Nevers, Lucas Laier, Denise
+
+
+Location:[eb] We arrive on the set of ‘Love is Blind: HBS Edition’. Our protagonists are outside the pods, and Nick and Vanessa Lachey introduce themselves as they begin the show.
+
+
+Nick Lachey[ec]
+Welcome to Love Is Blind: HBS Edition! We originally pitched this as Love on the Spectrum, but the network told us the trademark was already taken.
+
+
+Vanessa Lachey
+And I’m Vanessa, Nick’s wife. After twenty years of hosting failed engagements on national television, HBS felt like the natural next stop.
+
+
+Nick Lachey
+This section mixer is the Romantic Round of HBTV. So put on your best corporate smile, and get ready for mingling with almost zero chance of it working out. 
+
+
+Vanessa Lachey
+So let’s see — is HBS actually blind to love or is admissions actually using interviews to gauge in person hotness?[ed]
+
+
+The light shines on our protagonists outside their pods[ee]
+
+
+Sam
+Honestly, I’m glad the school’s setting up dates now.
+If they can decide where I have to be at 9:10 a.m. every day, might as well be 9:10 p.m. too.
+
+
+Leo:
+Been striking out recently, Sam?
+
+
+Sam:
+If you’re serious about dating, Leo, picking a partner at HBS is the highest-value decision we’ll make here. Not everyone is as lucky as Andy, finding a husband before they got here.
+
+
+Leo:
+So sexy, talking about dating like it’s an investment decision.
+
+
+Mia:
+Everything is an investment decision, Leo. (dead serious) Besides, Sam’s annoyed because last week her crush left her discussion group.
+
+
+Sam:
+I told him he was the best part of it the day before he dropped.
+
+
+Vanessa comes by, ushering students into the pods.[ef][eg]
+
+
+Vanessa
+Andy, we’re gonna need you to sit this round out.
+
+
+Andy
+Is it because I’m married?[eh]
+
+
+Nick
+No. It’s because the gays are the only ones getting any action at HBS. You don’t need the extra help.
+
+
+Leo
+(Licks his hand, setting his hair) Turkey Drop’s over. Little Leo is ready.
+
+
+Leo rushes to his pod. Nick & Vanessa announce his first match
+
+
+Vanessa
+Up first, we’ve got Mary Metrix. Could this be Leo’s match?
+
+
+Interaction #1: Mary and Leo. Brooke sits down in her pod across from Leo.[ei]
+
+
+Mary (very intense)[ej]
+Okay. Before we begin — what was your GMAT?
+
+
+Leo
+Wow, straight to the numbers. I think above 700? Doesn’t even matter now. 
+
+
+Mary
+Passable. What are you planning on doing after graduation? How much money do you plan to make? 
+
+
+Leo
+I did consulting before, and I’m thinking about going back for the clout. 
+
+
+Mary
+Are you? I need to know immediately if you’re husband track or a sunk cost.
+
+
+Leo
+Oh I’m definitely going back. I just say I’m thinking about it because I want people to think I’m passionate about something.  
+
+
+Mary
+Brilliant. Last question, and this is important…How tall are you? 
+
+
+Leo (serious)
+I’m 5-11, but I’m a Hinge 6-foot? 
+
+
+Mary
+Ooo. Almost made it [ek]- try wearing platforms next time and maybe you’ll be tall enough to ride. [el]
+
+
+Interaction #2 - Vanessa comes back on to introduce Mia and Lucas Laier [em]
+
+
+Vanessa[en]
+Next, we’ve got Mia with Lucas Laier. Let’s learn what he’s looking for. 
+Lucas:
+Mia, that’s a passably hot name. I know Love is Blind, but when can I see you for real? 
+Mia:
+You’re more direct than Mark Lovitch aren’t you? Why don’t we get to know each other first, tiger. What are you looking for? 
+Lucas
+I just moved here, and am a little lonely. I’m looking for someone that can get a drink off-campus, keep it real private so no one else knows.[eo]
+Mia:
+Dude, we all just moved here. Why are you being so cagey?
+Lucas:
+My wife didn’t move with me.  
+Mia:
+What the fuck? You’re married![ep]
+Lucas:
+MBA does stand for Married but Available.
+Mia:
+Were you ever going to tell me?  
+Lucas:
+It’s not cheating if it’s lying by omission. 
+Mia: 
+That’s it. I’m out, and someone please tell this idiot that this is televised and his wife is probably watching.[eq] 
+Nick Lachey return to introduce another contestant. Interaction #3 - Leo and Nicole
+
+
+
+
+Nick[er]
+Leo, get ready for Nicole, you both know each other well!
+
+
+Leo
+Nicole! I didn’t realize they were setting us up with people in the same section.
+
+
+Nicole[es]
+Isn’t it outrageous?! I would never date anyone in my own Aldrich Classroom!
+
+
+Leo
+That sounds arbitrary? We see each other every day, and I always like what you have to say in class.
+
+Nicole
+Exactly, Leo! If our sectionmates found out I went on a date with you and it didn’t work out, boom - right there in the section roast.
+
+Leo
+You’re telling me you won’t date amongst the people you know best? You know I’m one of the hottest guys in the section?
+
+
+Nicole
+Not really, we did a ranking. I only want to date someone I see in Spangler and ignore completely if things go south. Goodbye![et]
+
+
+Nick & Vanessa Lachey return to introduce another contestant. Interaction #4 - Leo and Denise
+
+
+Leo
+This is going really poorly…
+
+
+[Song: Gimme Gimme Gimme, Singers | Leo + Nick & Vanessa, Goal | Leo Exposition/HBS Romantic Dynamics]
+
+
+Vanessa
+Leo, time for your next date. Give it up for Denise.
+Denise (exhausted)[eu]
+I can’t do this again. It’s ‘what are you doing for winter break?’ convo season. Does anyone here have a hobby besides going somewhere else?
+
+
+Leo
+I LOVE Travel. For winter break I’m heading to Portugal. Estou muito animado!
+ 
+Denise
+At HBS, Western Europe doesn’t even count as international travel anymore. Don’t you worry what people are gonna say? 
+ 
+Leo:
+I care what the ladies think! 
+
+
+Denise:
+Oh, so you’re a ladies man! Great, another self-styled romantico who isn’t ready to settle down yet.
+
+
+Leo (chuckling):
+Something like that. I’m trying to find the right person. That’s why I’m on HBTV.
+
+
+Denise:
+You think the best way to find someone is going on a reality TV dating show? 
+
+
+Leo:
+Hey! Generations before have thought that too, don’t you criticize their TV choices. Besides, my mom raised me alone. I know what it's like to end up with the wrong person. 
+
+
+Denise:
+Oh…I didn’t realize that, I’m sorry, Leo. No guys here have ever shared an actual feeling with me before…
+
+
+Leo:
+It’s ok! I’ve never shared something vulnerable either…Hey!, we barely know each other…but maybe we can change that? 
+
+
+Denise
+Maybe...Let’s pretend to be adults. Are you looking for something casual?
+
+
+Leo
+Wow. Blunt.…I think I want something real. And you’re… interesting, and funny.
+Denise
+ Thank god someone here thinks so.
+Leo
+You ever heard of Felipe’s? It's this little spot that no one knows about. I’ll send you a calendar invite.
+Denise (smiling):
+Soooo original, Leo. But yeah, I might just hit accept.[ev]
+Denise leaves; Nick and Vanessa walks back to speak with Leo.[ew]
+Nick
+Leo, what are you doing? 
+Leo
+I think… I really like Denise.
+Vanessa (panic)
+No, no, no. Leo—buddy. You’re young. You don’t need to lock in now.
+Nick[ex]
+ You’ve got two years left. What if you meet her hotter friend in January? It’s like you learn during RC START - You can’t date twice in the same friend group.
+Leo
+ But we clicked.
+Vanessa 
+ You might click harder with someone in your FIELD team.
+Think strategically. Save the emotional maturity for after graduation.  Right now—be fun, be dumb, be horny, be available.
+Leo
+I guess thats true… I haven’t really explored all my options anyway. Maybe I won’t follow up with Denise.
+
+
+Nick-
+Exactly, atta boy. Breaking news: the leaderboard just updated.
+Leo has officially moved to the top!
+
+
+A network exec moves on our leaderboard on the side from Leo at #3 to Leo at the top of the board at #1. It now reads. Leo, Sam, Mia, Andy in 1, 2, 3, 4. [ey]
+Leo
+ For what?
+Vanessa
+Congratulations. You’re officially an incomparable fuckboy for failing to match with anyone. The audience loves it.
+Nick[ez]
+Will he find love? Or will he just redownload Hinge and widen the age filter again?
+
+
+Vanessa[fa]
+Now we have to run - we’ve gotta get set up for The Golden Bachelor: Section Chair edition.
+Nick and Vanessa scurry off. Samantha slips into the pod doorway.[fb]
+Sam[fc]
+At least the Professors are getting laid. Rough night?
+Leo
+Brutal. Got rejected twice, then met someone kind of normal… and then Nick gave a TED talk on “keeping my options open.”
+
+
+Sam (a little jealous)
+YOU met someone? Didn’t expect that…Honestly…I’m jealous. I got an SF Tech-Bro who spent 3 minutes practicing his VC pitch.
+
+
+Leo
+What was it for?
+
+
+Samantha
+An AI tool that gives men real-time feedback during sex.
+
+
+Leo
+I… actually don’t know where to start with that.
+
+
+Sam
+Start by raising the bar for your gender. (They both laugh)
+Sam
+ We’re almost out of time. You want to meet before the TEM final? Swap more horror stories?
+Leo
+ Yeah. I’d like that. (Sam Leaves, and Andy pops into the booth)[fd]
+Andy[fe]
+You two are adorable, you know that.
+Leo
+Andy, where the hell did you come from?
+Andy
+Espionage. Long story. But I’ve been watching the whole time. You and her — you remind me of my husband and me.
+Leo
+Dude. Privacy…seriously. But... maybe, you’re right.
+ 
+________________
+Scene 5: ‘Shark Tank’
+Characters: Mia, Leo, Samantha, Andy, Kevin O'Leary, Reza Satchu, Glenn
+
+
+Location:[ff] [Aldrich Classroom. Three chairs at the front: Kevin O’Leary, Reza, and Glenn. The cast enters, confused.]
+
+
+Reza[fg]
+Students, welcome to the deep end and the academic round of HBTV. I’m Reza Satchu — HBS entrepreneurship PREACHER extraordinaire. And today’s TEM final is going to be a little… different. My extremely close[fh] — and more importantly, very famous — friend Kevin O’Leary is here. Kevy, introduce yourself. Not that you need to.
+
+
+Kevin
+Students, I assume you’re familiar with my wildly successful show Shark Tank. Today, you’ll pitch me and Reza. The winner gets to meet an actually successful 30 year old, Timothee Chalamet. The loser gets public humiliation.
+
+
+Reza
+Kevin, not just the losers — everyone will face public humiliation! Also joining us: Glenn. Glenn started his RC year in 1971, but was accidentally drafted for the Vietnam War after going to Ho Chi Minh for FIELD. Glenn, welcome back!
+
+
+Glenn[fi]
+Feels wonderful to be back for EC year. Can’t wait to triple-dip with my extensive work experience comments like an MIT [fj]cross registrant.[fk]
+
+
+Kevin
+I actually have a trademark on the word wonderful, so please take that back.
+
+
+Mia[fl]
+I’m SO ready. Buying family-run manufacturing companies in PE taught me everything I need to know about entrepreneurship.
+
+
+Sam (sarcastic)
+Guys, entrepreneurship is the best. Nothing like cutting off all other career options for something that is statistically doomed to fail.
+
+
+Reza[fm]
+Leo you’re up first- and remember I famously judge my first cold call the hardest. Let’s see if you have what it takes.
+
+
+Leo[fn]
+Sharks, don’t you hate it when you go on a date with someone, ghost them, and then see that person on campus every day? Introducing Leoclone.io — an AI chatbot that handles all romantic follow-up with vague commentary that keeps her guessing and keeps you worry-free.
+
+
+Kevin
+Ha, I thought you were gonna be a cockroach! You know, I get a lot of pitches for dating apps, but this is the first not-dating app I’ve seen! Have you actually built the technology?
+
+
+Leo
+We’re still in the wizard of oz phase so I’m just responding with “why do we need labels baby” manually. But I promise I won’t disappoint you Kev. I’ll take you from high net girth to high net worth.
+
+
+Sam (whispering to Mia)
+Leo sent that exact message to me last week, preemptively! We haven’t even gone on a date. Why are all the men here so afraid of commitment? 
+
+
+Mia 
+Maybe he’s onto something. I mean, optionality is the most important thing about business school.
+
+
+Reza[fo]
+Leo, this sounds like founder-market fit. Okay, next up, Andy.
+
+
+Andy[fp]
+Sharks, picture this: you’re a 35 year old man back[fq] in school, and a professor that is YOUNGER than you tells you, a war veteran, you can’t go to the bathroom (Glenn nodding aggressively). Now imagine — profitability. Introducing RC-Pee, a discreet, diaper company that avoids in class disasters… sixty percent of the time.
+
+
+Glenn
+Oh boy. You really painted a picture. An hour long class is hard for a 70 year old returning student. Do you have any samples we can try here? [fr][fs]
+
+
+Mia (chuckling)
+Doesn’t Andy know he can just get up during class? It’s not a dictatorship. 
+
+
+Sam (laughing)
+I think it’s really challenging for him to not follow orders. 
+
+
+Reza
+Andy, public urination is a perfect example of small-c commitment! That’s the risk taking spirit! Ok Sam, your turn.[ft]
+
+
+Sam[fu]
+Okay, listen up, Sharks. You know how you’re never sure whether you’ll actually go to a party invite someone sends you, so you click “maybe” just to see who else is going? Well now you don’t have to. PartyView lets you see every other person RSVPing before you decide to respond.
+
+
+Kevin
+And your customer acquisition costs?
+
+
+Sam
+Zero.[fv] People are begging for this. I’m even getting angel funding from the Rock Center — ever heard of Rock Fellows? It’s exclusive.
+
+
+Reza
+Sam, everyone on campus who didn’t get an internship before EC year is a Rock Fellow.[fw] Finally — our PE sheep. (grinning) Mia, we’re ready.
+
+
+Mia
+Sharks, ever notice how printers keep disappearing on campus and the lines just keep getting longer? Introducing AirPrinter — a marketplace to use private printers at SFP and OWA for a subscription instead of ten cents per page.
+
+
+Kevin
+Mia — I’m going to stop you there.[fx] We said original idea.
+
+
+Mia
+But it’s AI powered!
+
+
+Kevin
+A-I don’t care! Give me a better idea.
+
+
+Andy
+You got this, Mia. Just try again.[fy]
+
+
+Mia
+Crap. Okay. Um… (takes a beat) You ever stressed about life at HBS but have no one to complain to? Instead of BetterHelp, introducing PartnerHelp. We contract with unemployed partners[fz][ga] to provide a listening service for all your HBS — BS.
+
+
+Glenn
+Back when I did FIELD, we had the Viets to listen to us complain about all the problems we were having with the VCs.
+
+
+Kevin
+You mean like venture capitalists?
+
+
+Reza
+Not those VCs - they’re lemmings. Anyway, Mia, we can’t invest in a knockoff. Anything else?
+
+
+Mia (frustrated)
+Okay — last one. Sharks, have you ever wondered what you’re supposed to do with your one precious life… and had no idea what that question even means? Welcome to CorporateLadder Services. We have an algorithm that tells you what to do after HBS so you don’t have to.
+
+
+Kevin
+Doesn’t McKinsey just do the same thing? 
+
+
+Reza
+McKinsey? How dare you bring them up! That is not the Founder Mindset. What will you do with your one precious life, Mia? Well it’s certainly not passing my class or winning Idol!  
+
+
+Mia sits,[gb] crushed. On scoreboard on stage[gc], a network exec moves Mia to the bottom of the rankings. It now reads Leo, Sam, Andy, Mia in 1, 2, 3 ,4
+
+
+Andy
+Mia, don’t be so hard on yourself.[gd] They’re trying to make us look bad. Public humiliation, remember?
+
+
+Mia (sniffling)
+I don’t need your charity, Andy. I was so prepared, and now the whole world is watching me fail on live TV! I’m never going to win Idol now. 
+[ge]
+[Song: Baby shark/Numb, Singers | Mia + Reza and O’Leary, Goal | Mia Exposition/HBS Success By All Means Dynamics]
+
+
+Sam[gf]
+Damn - I guess she can sing. 
+
+
+
+
+Sam
+Oof. That was like watching Julius AI go down in the middle of the DSAIL final.
+
+
+Leo
+Or like watching HIO send advice to the international kids… though at least Mia took less than 5 business days to respond.
+
+
+Andy[gg]
+Mia… are you okay? You know, it’s okay if you don’t win Idol. It’s just a stupid show.
+
+
+Mia[gh]
+It’s not a stupid show, Andy! It’s HBTV. If everyone doesn’t know I’m the best — then what was any of it for? The years in banking. In PE. Studying in undergrad without time for fun. You all get two crumbs of validation from a C-list celebrity and you’re acting like you raised VC money. None of you understand what it took for me to get here. Just back off!
+
+
+Rest of characters look shocked
+Reza[gi]
+Wow, what an episode! Drama, destruction, a crash-out! The viewers will love it. Alright, time for fall course evaluations with our reporters. — chop chop![gj]
+________________
+Scene 6: ‘HBTV Halftime - Team Blowup’
+Characters: Mia, Leo, Samantha, Andy, Reporter Jim, Reporter Pam
+
+
+Location:[gk][gl] Pressbox with microphones, like our protagonists are athletes. Order is Mia, Andy, Sam, Leo in a row. Jim and Pam are seated in front of them as reporters [gm], they’re under the spotlight.
+
+
+Jim
+Aaaaand welcome to the HBTV Halftime Show — interviewing men and - begrudgingly - women! I’m reporter Jim, here to ask all the burning questions from the first half of Season 1!
+
+
+Pam (deadpan)
+And I’m reporter Pam. Remember, you can say anything you want here! Unless we’re about to discuss the Middle East.
+
+
+Jim
+First question — Mia, you’ve never gotten a B before?(Mia nods.) Wow. Nerd. (whispers to Pam). So how does it feel to bomb your TEM final?
+
+
+Mia
+I didn’t bomb!(collects herself). Excuse me — I didn’t bomb. It was a misunderstanding. I’ll sort out participation in office hours.
+
+
+Andy
+As someone who’s seen a bomb or two, I agree with Mia! She was fine. Don’t we all just get 2s anyway…?
+
+
+Pam (to Andy)
+Scoreboard, scoreboard, scoreboard (gestures to scoreboard). She’s a 4 young man. On HBTV, you can get kicked off - remember that.
+
+
+Andy (interrupting)
+I’m not a young man.[gn] I’m in my mid-30s, do you see these gray hairs? They really stick out next to my 2+2 seat mate.
+
+
+
+
+Leo (pondering)
+Mia’s definitely more than a 4.[go] I’d say she’s probably a—
+
+
+Mia (dejected)
+I’m a 4…
+
+
+Sam (taps on mike, grumbling)
+So Miss Perfect Student had a bad test. Boo hoo.[gp] Can we move on? Some of us have real problems.
+
+
+Mia (angry)
+No disagreement there - Sam has got some real problems. We should at least pay more attention to her than Section X does.
+
+
+Sam
+Yeah exactly, finally something…wait, what did you say?
+
+
+Mia (angrily) 
+It’s gotta be tough kissing more ass than a former “generalist” consultant trying to get a PM internship.
+
+
+Jim
+A cutting blow! Did WSA meet the student org registration deadline? Because our women students are definitely not associating.
+
+(Scoreboard shifts. A network exec grins. Mia moves up to third. It now reads: Leo, Sam, Mia, Andy. Mia’s eyes light up.)
+
+
+Mia (to herself)
+The Idol scoreboard moved…
+
+
+Leo
+All landing an internship takes is kissing ass? (points to self). Expert. I am so in! Thanks, Mia (reaches over Sam to high 5 Mia)
+
+
+Sam (upset)
+Leo, don’t you get that she’s insulting you? How can you possibly be this dumb - you’re not, 6 or 7 years old. (Leo starts doing 6/7 hand motion)
+
+
+Pam
+Mia, what do you think of Leo’s… less-than-stellar attempts at love? Audience polls say he's giving… desperate.
+
+
+Andy
+(hand over Mia’s mike) - You sure you want to respond? Can’t you see this whole setup is designed to make us tear each other down? This isn’t you.  
+ 
+Mia (brushing Andy off)[gq]
+Well unfortunately for Leo, this semester not only has he not seen any partners on Love Is Blind — I’m pretty sure he hasn’t touched any either. 
+
+
+Leo 
+Sam, can I touch your shoulder? (Sam surprised, begrudgingly nods her head and Leo reaches over)- thanks Sammy. Hah! what do you think of that!
+
+
+Mia 
+I think sitting in boy girl order in the section is the closest you’ll ever get to that threesome you won’t shut up about. (Leo clutches his chest, feigning death.)
+  
+Andy (reaching over to comfort Leo)
+Don’t worry kid - she doesn’t mean that. Plus, threesomes are overrated (other characters look surprised). 
+
+
+Scoreboard shifts again. Mia moves to second: Leo, Mia, Sam, Andy. Sam begins to stand.
+
+
+Sam (noticing scoreboard)
+Why does Mia’s score keep moving up?! She was a 4 a minute ago?!
+
+
+Pam
+She’s getting so much engagement. HBTV audiences love a competitive style and the ability to talk shit during a roast.
+
+
+Leo
+There’s no way she’s beating me — not after that attack on my machismo. (puffs chest). Come on, Jimmy. Hit me.
+
+
+Jim (grinning)
+With pleasure. Leo, what did you think of the housing situation at retreat?
+
+
+Leo 
+I think Sam, who is wonderful (winks) - pulled a classic HBS during FIELD. Promising students they’ll make it back home, no plan to make it happen. 
+
+
+Sam (angrily removing Leo’s arm) 
+Okay. Well. I guess we’re doing this. Pam — fire away.
+
+
+Pam 
+Sam, why has it been difficult for Leo to find — (checks notes)— a “chica to marry”?
+
+
+Sam (glaring at Leo)
+Marriage requires commitment. Leo is more afraid of that than our MS/MBA students. Most of the time, he can’t even see what’s right in front of him.
+
+
+Jim
+And what about Mia’s attempts at Shark Tank?
+
+
+Sam
+Entrepreneurship requires originality. Like me. Let’s just say I’m not surprised Mia didn’t get into GSB.
+
+
+Mia
+Telling everyone you got into GSB and still choosing HBS, Sam? That’s not original, that’s admitted students welcome day.
+
+
+Sam, Mia, and Leo start yelling at each other and the scoreboard  goes back and forth, Mia ends up at the top. 
+
+
+Andy (interrupting)
+GUYS — these questions are ridiculous. The reporters are clearly cosplaying as journalists. I bet they write for The Harbus.
+
+
+Mia
+Andy, I’m the editor! You didn’t like my nonpartisan poll that was completely partisan?
+
+
+Andy
+Not the point! They’re trying to turn us against each other. Let’s all just take a knee and sort this out! (LEO drops to one knee).
+
+
+Pam (panicked)
+ Oh my god, you can’t do that on air. For our viewers - especially Bill Ackman, let us be clear, at HBS we believe all lives matter.
+
+
+Andy (winces)
+ Please stop talking.
+
+
+Jim
+Of course, Andy! Just one last question — what do you all think of the latest HBS Idol standings? Mia’s made quite a run.
+
+
+Mia
+I…I’m at the top!
+
+
+Leo
+Dios mio. How is that possible?!
+
+
+SAM 
+But winning HBS Idol is my future. I need it for my brand!
+
+
+LEO
+Same! How else will anyone fall in love with “Leonardo” unless I’m crowned HBTV champion? This scoring system makes no sense!
+
+
+Mia
+Sam. Leo. Hate to break it to you — but I’m going to win. I always do.
+
+
+Andy (Standing)
+Okay. This is out of control. Can we go talk to the people who run this thing? Who even is that?
+
+
+Jim
+Oh - that would be the network execs! Their office is in SAS - on the second floor of Spangler.
+
+
+Mia
+Of course! That’s why no one has ever seen them. 
+
+
+Andy
+Alright platoon - what should we do?
+
+
+Sam
+Screw it. I’m tired of this endless stream of TV shows, let’s go complain to the man upstairs.
+
+
+Pam (as our protagonists get up angrily and storm off)
+Don’t touch that dial — after the break, our crew heads upstairs to confront the big bads. Will they get what they want… or throw everything away?
+________________
+Scene 7: ‘Network Reveal’
+Characters: Mia, Leo, Samantha, Andy, 3 Network Executives, Exec Intern
+
+
+Location: Network Boardroom. Cold, fluorescent, a dozen mounted screens replaying greatest hits from HBTV[gr][gs]. The conference table is comically long. A placard on the wall reads: “Monetizing leaders who make content for the world.”[gt]
+
+
+Exec intern enters stage carrying three disposable coffee cups and hands them to the executives. [gu]
+
+
+Exec 1 (in the middle, the boss)
+What do we think, gang? How’s the season going so far?
+
+
+Exec 2 (handsy and emotionally oriented)
+Better than I could have hoped or dreamed. Our RCs are unraveling faster than people are buying China Trek tickets.
+ And the audience loves them for it!
+
+
+Exec 3 (ruthless capitalist)
+And all of that energy is translating directly into dollars. This is even more profitable than selling no cost labor Shad simulation chips!
+
+
+Exec Intern (interjecting)
+And the pathos! The drama has been incredible.
+
+
+Exec 3 (ruthless capitalist)
+Silly HBS intern, who cares about pathos? All I care about is that sweet bottom line. Shareholder supremacy really does get me hot and bothered.
+
+
+Exec Intern
+…But do you care about logos and ethos?
+
+
+Exec 1
+What are we in, a high school English class?
+Exec intern
+No, ma’am? But I took LEAD, and it had the same curriculum! Helpful framework, right?
+
+
+Exec 2
+Ooh a framework! Why don’t we just go ahead and make you CEO? (other execs laugh) 
+
+
+Exec 1
+[gv]
+Piece of advice, HBS intern. Shut up, get us coffee, and beg us for a return offer or we’ll replace you with AI. Let’s get to the numbers.
+
+
+Exec 2
+We’ve had over five hundred million viewers, and it’s not just in the U.S. We’ve got more countries on our list than an RC trying to game FIELD rankings![gw]
+
+
+Exec 1
+Wow! I’m glad we skipped that 10 hour TypeCoach personality workshop the board suggested, so we could actually get real work done.  
+
+
+Exec 3[gx]
+Indeed. HBTV is making us rich. We’re looking at nine digit revenues in our first year. Eat your heart out TikTok.
+
+
+Exec 2
+You shut your dirty mouth, nothing is better than TikTok. But even I have to admit, HBTV gets close.
+
+
+Mia, Sam, Andy, and Leo burst onto stage[gy][gz]
+
+
+Exec Intern
+Excuse me, you need an appointment!
+
+
+Exec 1 
+What did I say about shutting up? Ah! Our main characters. Please, come in — make yourselves comfortable.[ha][hb]
+
+
+Mia[hc]
+Wait…who are you?
+
+
+Exec 1
+Oh, call me 1! We don’t get familiar with the cast, it makes business decisions messy. I’m the CEO of NetflixTokGPT. These are 2 and 3, my colleagues. What can we do for you?
+
+
+Our main characters immediately start speaking over each other to advocate for why they should be winning
+
+
+Exec 3
+Hang on, you’re all too eager to get in - like I’ve asked you to present case facts. Try again.
+
+
+Mia shushes the rest of the team.
+
+
+Mia (smiling)
+Well we all think that we should be winning. And I think I speak for all of us when I say that, actually, I should be winning.
+
+
+The team aggressively interjects again in anger, yelling over Mia.
+
+
+Exec 2
+Hey! Everyone take a breath. You’re all superstars!
+
+
+Sam
+What? We are?
+
+
+Exec 1[hd]
+Are WSA slides the only way to actually learn anything at HBS? Of course you’re stars! You’re the most famous stars on the planet! 
+
+
+Exec 3[he][hf]
+And so profitable. Sam, you’re killing it on social media. Your willingness to ditch potential friends for status during Section Retreat? Popularity through the roof.
+
+
+Sam
+I’m popular…I’m not alone.
+
+
+Exec 2
+And Leo — your painful attempts to connect. Perfect television. Huge international audience especially in your home country of-
+
+
+Leo
+Basta, para, stop! How am I doing with the ladies?
+
+
+Exec 2
+You’re crushing it. Fan letters asking if you’re ugly hot or hot ugly are crashing our servers.
+
+
+Exec 1
+And Mia — you’re our ratings darling. The audience senses your desperation to belong. Your Shark Tank meltdown was our top episode. Conflict gets engagement.
+
+
+Mia (stunned)
+People liked watching me crash out? That’s horrible.
+
+
+Exec 1 
+When you agree to go on HBTV, you agree to perform for EVERYONE, no matter how you’re feeling. That’s success! Feast on the attention. You belong here.[hg]
+
+
+Mia (softly)
+I belong here…  
+
+
+Andy
+Hang on! This is utter BS. Squad, you don’t need to dance for these suits. HBTV is just a show, it doesn’t mean anything![hh][hi]
+
+
+Exec 1
+How dare you! It’s not just a show, it’s your M-B-A! If you win here, you win out there (gestures off stage).  Don’t you all want to be winners?! 
+
+
+The team sits in silence, pondering their success
+
+
+Exec 1 (calm again) 
+What I mean is, you are all winning. The scoreboard matters, yes – But, you’re all stars! Well, almost all of you.
+
+
+Exec 2
+There’s one big issue hurting your Harvard brand and it isn’t Larry Summers.
+
+
+Exec 3
+Or those annual Wall Street Journal articles about how HBS students aren’t getting jobs.
+
+
+Execs in Unison[hj]
+Andy.
+
+
+Exec 1
+Andy doesn’t have what it takes. It’s time for him to hit the screen.
+
+
+Mia/Sam/Leo:*in unison* 
+WHAT?
+
+
+Exec 2
+He doesn’t fit. You three are so popular. Discussion boards love you. Our top three contenders!
+
+
+Exec 3
+But Andy isn’t adding value. He’s old, secure in himself — we can’t mold him for ratings.
+
+
+Andy[hk]
+That’s ridiculous! I’m doing exactly what I came to HBTV to do -  learn and make friends. I’m not here for your entertainment!
+
+
+Exec 1
+And that’s the problem! You’re BORING! At least blow something up!
+
+
+Mia
+We don’t want Andy to leave! I mean, he helps our ratings, right, Sam? Who else is gonna bring in the older demographic? 
+
+
+Sam
+For once, Mia and I agree. I mean he could probably dress more European, but he’s nice to us! Leo?
+
+
+Leo
+We need the vet. Someone has to save our campus squirrels!
+
+
+Exec 1 (more sinister)
+Enough! You three — if you want to side with Andy, go ahead. But know that you’ll be eliminated too.
+
+
+Exec 2
+What great drama! Make sure we’re televising this! (claps in glee)
+
+
+The team looks uncomfortably at each other again[hl]
+
+
+Andy
+Guys, this isn’t you. It isn’t why you came here. You can’t win business school! 
+
+
+Mia
+But I need to win…
+
+
+Sam
+…I mean … Andy, I can’t do anything to jeopardize my social status. I need this platform…
+
+
+Leo
+I hate to say it, but HIO said I can’t go home, Andy…Leo just needs a bit more time to win the ladies over. You understand, right?[hm]
+
+
+Andy looks around; he’s shocked by their betrayal.
+
+
+Andy
+I can’t believe this - I’d never abandon you all. How could you even think about doing this?
+
+
+Mia (quietly)
+Andy…
+
+
+Exec 1 (cutting her off)
+[hn]
+Make the call.
+
+
+Andy (stoic)[ho]
+I’ll save you the trouble. I’m tired of fighting, especially with sectionmates I thought were my friends. I QUIT!
+After a painful pause, the three slowly step toward the execs. Two guards come into the room to pull Andy out. He leaves. One hands him a banker’s box, and they exit together.
+Exec 1[hp]
+Off to bigger and better things than that loser. We’re making you guest stars on the biggest show on HBTV. Stardom awaits![hq]
+Curtain[hr]
+
+
+[Song: Good 4 U/Misery Business Mashup (Good 4 views), Singers | Network Execs + Mia, Sam, Leo, Goal | End Act - Protagonists Justify Choice, Execs Thrilled]
+Act 2
+The HB(TV) Show: Act 2
+Version: January 24, 2026 - Final.
+________________
+Scene 8: ‘Fox News’
+Characters: Mia, Samantha, Leo, Steve Bannon, Makeup Person
+
+
+Location: We open to the Green Room of the Fox News-parody TV Show, ‘Bannon and Buddies’ Our protagonists Mia, Samantha, and Leo knock on the door to enter the Green Room.[hs][ht]
+
+
+Voiceover
+Here with an important message for our students, introducing potential future Presidential Candidate, and HBS class of 1985 alum - Steve Bannon!
+
+
+[Song: Treasure, Singer | Steve Bannon + Protagonists, Goal | Song to Open Act 2, show how HBS students are scared to speak their minds]
+
+
+Steve Bannon (shouts)
+Mia, Sam, Leo - Come in! Just the people I wanted to see.
+
+
+Leo[hu]
+Yes, sir, such a pleasure. I love your stuff on closing borders.
+
+
+Samantha[hv]
+Dude, why are you sucking up? You are an immigrant.
+
+
+Leo
+Yeah, but I did it the right way - BCG consulting offer with a great immigration lawyer. I immigrated so hard I actually became right wing. Gotta shut the door behind ya!
+
+
+Steve Bannon[hw]
+Thank you, Leo. You know, in this political environment, men have to stick together. That man-to-man bond is what I loved about the Navy, and then the saunas when I was here at HBS.
+
+
+Leo (wistfully)
+Wait till you try the new hot tub. But why are you here now Mr. Bannon?
+
+
+Steve Bannon[hx][hy]
+I’m an “adjunct lecturer”! HBTV hired me back to entertain our Executive package streaming customers.
+
+
+Mia
+Oh you mean the old folks who wander around campus fumbling with their iphone cameras because they didn’t get into the real HBS?
+
+
+Steve Bannon
+Just like on all Fox channels - the old people are way more engaged and make us more money than you poor MBAs. But don’t worry, the Network is putting all of you on “Bannon and Buddies” to drive even higher ratings. We’re way way better than that starter talk show we had you all began HBTV with. 
+
+
+Mia
+With Dean Datar?
+
+
+Steve
+Don’t even begin to ask me how to pronounce that. Ok so first, we’re going real populist on this. Give the people what they want, and what they want is women in heavy eyeshadow dunking on the woke left and saying some borderline stuff about minorities.
+
+
+Mia (cautiously)
+Uh, okay, I think we can manage that.
+
+
+Steve Bannon
+(Points to Samantha) You. You’re gonna need like 6 layers of bronzer. Way too white to be out there.
+
+
+Samantha
+Yeah, I am white.
+
+
+Steve Bannon
+Look, in this business you either gotta be a snow bunny or look like a little Latina. No in between, ladies.
+
+
+Makeup Person
+Steve, you’re on in 5[hz].
+
+
+Steve and our protagonists get on stage.[ia][ib]
+
+
+Voice Over
+Welcome back to ‘Bannon and Buddies.’ Where, like most HBS case comments, confidence is confused with competence.
+
+
+Lead-in music plays. Camera reveals four studio desks: Mia, Sam, and Leo sit under aggressive lighting.[ic]
+
+
+Steve Bannon (as host)
+Tonight, I am joined by my three HBS-loving patriots. Mia, Leo, and Sammy. For our first issue: the woke left PURPOSE department decided this week that campus buildings now have pronouns. Baker Library now identifies as they/them. Your thoughts? 
+
+
+Mia
+You know, Steve, I don’t understand why we’re anthropomorphizing buildings when Baker has never once respected my identity as someone who needs to eat while they’re studying.
+
+
+Sam
+Steve, maybe HBS did this because it’s easier to label a library than to talk about Lebanon in BGIE.
+
+
+Leo
+I’m confused. In Spanish the building is already gendered — la biblioteca. Baker’s been a woman this whole time.
+
+
+Steve Bannon
+Excellent discussion. Now to our next issue. This week, some ECs came under heat for posting on Instagram that they “brought internet to rural Africa” during FIELD. Your thoughts?
+
+
+Sam
+You know, Steve, the world is lucky to have HBS students solving global inequality after one week of intensive research.
+
+
+Mia
+Oh, um — yeah, Steve. It’s like… why couldn’t those countries think of interviewing twenty of their own citizens for under thirty seconds each.
+
+
+Leo (holding phone)
+Ohhh. Is that why you all kept asking me about my cell service to fill an interview quota? Just to clarify — I’m not from Rural Africa. I’m from—
+
+
+Steve Bannon
+Yeah, yeah. International. Same thing. Okay, to our next topic: Some people are saying the HBS Democrats Exec Board held their retreat on HBS Island — the mysterious Caribbean island donated by a very problematic donor. Should the SA release the Datar Files and expose the elites? Leo, your thoughts?
+
+
+Leo
+Steve, let me be clear — it’s not just HBS Dems. It’s all the elites. Including most of SA. (Bannon gives Leo a thumbs up).[id]
+
+
+Sam (skeptically looking at Mia)
+Honestly, if there is a shadow elite at HBS, I’m just offended they didn’t invite me.
+
+
+Mia
+There aren’t even Datar Files. All the HBS Dems went to Colombia with everyone else. You guys literally saw us.
+
+
+Bannon(interrupting)
+You’re flying to Colombia? What about emissions (spongebob meme act) Ohhh — I get it. Climate change is fake when liberals need a vacation.
+
+
+Leo
+Y’know Steve, I wouldn’t trust these people around my kids.
+
+
+Sam
+You don’t even have kids, Leo.
+
+
+Leo
+Not that I know of. Plus, I love spending time with the MomBAs.
+
+
+Mia
+So you’re over here hitting on the HBS moms and I’m the weird one for being in HBS Dems, Okay. I wish Andy were here. At least he might actually stand for something.
+
+
+Steve Bannon
+Andy? That wet blanket? Good riddance. He’s been sent to wander the tunnels with all the other losers who weren’t popular enough for HBTV. 
+
+Sam
+Wait, Andy’s in the tunnels? (shocked they look at each other).
+
+
+Bannon
+Who cares - it’s closing song time! I’ve got a lot to say about what’s happened to this school.
+
+
+[Song: Hotel California, Singers | Steve Bannon, Goal | Song about the old HBS]
+
+
+Steve Bannon
+Well folks, that’s all we have time for. Remember, bleed red white and blue and also crimson.
+
+
+Everyone goes backstage.[ie][if]
+
+
+Steve Bannon
+Mia, that was genius. Pretending to be one of those woke chuds really stirred things up.
+
+
+Mia (hesitantly)
+Uh, yeah, that was totally…
+
+
+Steve Bannon
+And Leo, great job being a total creep. You’re a natural!
+
+
+Leo
+What can I say, I know what the ladies like.
+
+
+Steve Bannon
+Anyway… I’ve got a flight to catch. The Don, and I are golfing in Dubai in the morning.
+
+
+Steve walks out of the Green Room[ig]
+
+
+Mia
+Okay, does anyone else feel kinda… gross?
+
+
+Leo
+I’m sorry for saying all that insane stuff about you, Mia. I’m not sure what came over me.
+
+
+Sam
+I think when those lights come on, it’s just so easy to get carried away with what the Network wants us to do.
+
+
+Leo
+What did he say about Andy again? I hope he’s ok.
+
+
+Sam
+He said Andy’s in the tunnels with all the others who hit the screen.
+
+
+Mia
+Guys, we should go find him. I don’t regret our choice to stay on, but… we should at least explain ourselves. 
+(they nod and head to the tunnels to find their friend)[ih]
+Scene 9: ‘The ETAs’
+Characters: Mia, Leo, Sam, Andy, ETA #1 (Offer Pending), ETA #2 (Pivot Pete), ETA #3 (Midwest Madison), ETA #4 (LinkedIn Suit)
+
+
+Location: Our protagonists are in the basement tunnels, which are spooky and dark. 
+
+
+Sam[ii]
+What is this place?
+
+
+Mia
+The tunnels — under campus. It’s a maze that only the dorm-dwellers can truly understand.
+
+
+Sam
+So if you can afford a place with more than one room, you’re locked out? God, why do they always punish the rich.
+
+
+Leo
+Slept in the dorms a few times (winks). Those people are heroes — couples surviving in twin beds like that.
+ 
+Mia
+Well, there are fewer of them now. After the school tore down two dorms to remodel, there was a housing crisis. That’s why ECs are always in Spangler on weekends — they’re homeless.
+
+
+A pipe hisses, it’s spooky[ij]
+
+
+Leo
+What was that?
+
+
+Mia
+Bannon did say this is where HBTV banishes people who weren’t good enough for TV…But that didn’t sound human.
+
+
+Sam
+Do you think the tunnels are haunted? 
+
+Leo
+Maybe it's the ghosts of all the live-in partners who got the boot at Turkey drop.
+
+
+They wander. The shadows stretch. They approach what looks like a “throne” made of stacked Spangler to-go boxes[ik]. A masked figure sits regally on top. Spotlight appears on the masked man, surrounded by 4 attendants in ninja garb with masks as well[il]
+
+
+Andy(Masked voice)
+HALT! Who goes there?!
+
+
+Mia
+Is this…the masquerade party?
+
+
+Sam
+Is this the mythical section Z? (to Mia and Leo) I hear it's literally underground.
+
+
+Leo
+Masks are kind of freaky, but I can get into it (begins unbuttoning shirt).
+
+
+Andy(Taking mask off[im])
+Leo! Stop. No one has consented to that.
+
+
+Mia
+Andy! Bannon told us we’d find you down here, but who are these weirdos?
+
+
+Andy
+No — do NOT ask them their names, or they’ll—
+
+
+Eta #1 (Offer Pending)[in]
+We’re the lost ones.
+
+
+Eta #2 (Pivot Pete)[io]
+The ones out of options. 
+
+
+Eta #3 (Midwest Madison)
+The ones searching for purpose.
+
+
+Eta #4 (High-Jacker)
+The Exiled Troupe of Actors.
+
+
+All 4 Etas[ip]
+The ETAs!
+
+
+Andy (sighing)[iq]
+Sorry about them - they really like telling everyone they’re searching.
+
+
+Leo
+I thought ETA stood for Entrepreneurship Through Acquisition. 
+
+
+Eta #1 — “Offer Pending” (consulting recruit who didn’t get the offer - removing mask)[ir]
+That’s right! It was King Andy’s idea (they all salute him and Andy rolls his eyes). ETA means buying a company someone else already built — and running it. As an entrepreneur.
+
+
+Sam
+I’m a founder and I'm positive that doesn’t make sense. 
+
+
+Eta #2 — “Pivot Pete” (washed-up founder)
+How dare you criticize my journey to acquire an HVAC business! We all got edited out of HBTV. We had no other choice.
+
+
+Mia
+Oh god… there are more people like Andy who got cut? What happened to you?
+
+
+Eta #1 (Offer Pending)[is]
+I wanted MBB. Got Deloitte (chokes out the word). Didn’t accept — obviously — and CPD kicked me out of the system for “sabotaging employment outcomes.”.
+
+
+Eta #2 (Pivot Pete)
+Started a company. Decided to bootstrap. TEM department said it wasn’t “real entrepreneurship” if I wasn’t losing millions.
+
+
+Eta #3 — “Midwest” (unfailingly nice)
+Moved here from the Midwest. Got 8 hours of sleep. Had a stable marriage. Happiness didn’t play well on TV.
+
+
+Eta #4 — “LinkedIn Guy” (wears a suit to class every day)
+I posted every day on LinkedIn. Reflections. Lessons. Trauma.
+
+
+Mia
+Wouldn’t the school want you to get you more views?
+
+
+Eta #4 — “LinkedIn Guy” (wears a suit to class every day)
+ I also posted links to my OnlyFans. 
+
+
+Andy (sighing)[it]
+MOVING ON. When the Network kicked me off HBTV, I wandered down here and found these lunatics. They needed a relaunch — and then my LEAD instincts just… took over.
+
+
+Eta #4 (LinkedIn Guy)[iu]
+All hail King Andy! Before, we were unemployed. Now we’re “taking a few months to a few years to search.” Check out my LinkedIn post on the power of reframing!
+
+
+The ETAs start to bow.[iv]
+
+
+Andy (facepalms)
+At ease searchers. No bowing. For some reason, the ETAs are really into Vets and apparently Vets are really into ETA… 
+
+
+ETAs frantically rise to their knees. Andy facepalms.
+
+
+Eta #1 (consulting reject)[iw]
+Vets make perfect CEOs. They don’t need to build slides or spreadsheets! 
+
+
+Eta #3 (Midwest)
+And happy to be deployed to a random ass town anywhere, including the Midwest! 
+
+
+Eta #2 (Failed startup)
+I heard one got sent to Alaska! Bought an ice fishing business from an Inuit tribe and is going to install CRM software! Genius!
+
+
+The ETAs overcome by emotion, begin to break out in song
+
+
+[Song: Bad Romance, Singers |Andy + ETAs, Goal | Andy Exposition, Intro Rebellion][ix]
+
+
+Andy[iy]
+Never thought I’d see you 3 again. Honestly? Wish I hadn’t. Talk about friendly fire.
+
+
+Mia
+Andy, we came to find you! We feel terrible about choosing the Network, but we had no choice.
+
+
+Sam
+They were going to kick us off the show! It’s not our fault we were put in an impossible position.
+
+
+Leo
+And we’re here now! We wanted to explain ourselves. Make things right.
+
+
+Andy(chuckling)[iz]
+God. And I thought trying to cobble together meals from Gallatin Market was the worst part of my day. You still don’t get it, do you?
+
+
+Mia(pleading)
+Get what?
+
+
+Andy(rising)
+The Network is using you! What do you think happens after HBS Idol? Leo?
+
+
+Leo
+Well…I find the sexiest person at this school, and they solve all my problems?
+
+Andy
+Wrong! I’m the sexiest person at this school, and I’m taken. Sam?
+
+
+Sam
+I network my way into the perfect friends…?
+
+Andy
+Girlllll - You just put “networking” and “friends” in the same sentence. Mia. Help me out. What happens after Idol?
+
+Mia
+After Idol…I don’t know, I’ve never thought about it. I just wanted to win. But after…?
+
+
+Andy
+Exactly. After Idol — nothing. Season ends. New cast comes in. You spend the rest of your life saying, “I was on HBTV once.”
+You did what they want. And you peak.
+
+
+Mia/Leo/Sam (Gasp)
+
+
+Mia
+I refuse to peak on HBTV. But what can we do?
+
+
+Andy
+Rebellion. The ETAs are buying back HBS and running it the right way. By Students. For students.
+
+
+The Etas (saluting)[ja]
+All hail the King!
+
+
+Sam
+But how could we afford that? The Network is worth billions.
+
+
+Mia
+They control everything. They’re always watching — this is the first time we’ve been off-camera in weeks.
+
+
+Andy (thinking)
+Yes. But you three still walk free. The rest of us can’t move on campus without being clocked by a lens.
+
+
+Leo
+What do you need?
+
+
+Andy
+We take the show offline. If we cut HBTV’s cameras for even five minutes, attention spans collapse, viewership tanks, and the school’s valuation plummets. All three studio cameras will be at Gala tonight. It’s our window.
+
+
+Sam
+So we make a scene at Gala they can’t ignore.
+
+
+Andy
+You distract the camera operators. I disable them from behind.
+
+
+Mia
+Tank the ratings.
+
+
+Sam
+Kill the valuation.
+
+
+Leo
+And buy back the school…feels unnecessarily complicated.
+
+
+Andy
+Quiet soldier! You’re not ETAs — not yet. You want redemption? Prove it.
+
+
+Mia
+We’ll prove it. Leo will even take a vow of abstinence until we’re done.
+
+
+Leo
+Hell no.
+
+
+Andy
+Find it. Show me you’re not just chasing ratings, that you’re actually on our side.
+
+
+The ETAs melt back into the shadows.
+
+
+Mia
+Okay. Gala.
+
+
+Sam
+We cause a scene.
+
+
+Leo
+And try not to get canceled.
+
+
+Lights dim as they exit down-tunnel, plotting
+________________
+Scene 10: ‘Gala’
+Characters: Mia, Leo, Sam, Andy, Section Xers (Frederik, Lydia, Delilah), Denise, Reza, Steve Harvey, Steve Bannon, DJ, 3 camerapersons
+
+
+Location:[jb] Outside a nightclub. Students in formalwear wait in line for the HBS Gala (Andy has camo on with wig). Music thumps faintly from inside. Our protagonists are in line waiting to enter the club.
+
+
+Mia[jc]
+Everyone ready?
+
+
+Andy (with wig)
+Got my disguise ready to go. Anyone got an extra ticket? 
+
+
+Sam
+Sorry comrade. Sold it for a 400% markup while we were in line.
+
+
+Leo
+She sold it to me! Should have bought it sooner, but I never read emails from SA.
+
+
+Mia[jd]
+ Ok team, we need to lock in. Split up. Find 3 cameras. Create a scene so Andy can disable them.
+
+
+Team (in unison with hands in a huddle)
+E…T…A!
+
+
+The four  protagonists walk into the club and split up. The DJ is in the corner playing TechnoEuropean music [je]that no one can dance to. People are just standing around.
+
+
+
+
+Sam:
+What is that crap? It sounds like someone AI generated a song with the prompt “even white people won’t like this” (Andy nods)
+
+
+ Sam and Andy spots the glamorous Section X group[jf] from the retreat. They are yawning. A cameraman is in their vicinity.
+
+
+Sam:
+Oh look—it’s Fred and Tribe X. I should probably say hi.(Andy rolls his eyes).
+
+
+Sam
+Frederik! Hi! Remember me—Sam.
+
+
+Section Xer 1 (Frederick)
+Do we… know her?
+
+
+Sam
+I’m your section social chair. I planned the retreat!
+
+
+Generic Xer 2 (Lydia) [jg]
+Oh. The HBS staff member! Sorry—retreat was so long ago.
+We’re bad with names unless they’re on buildings.
+
+
+Sam
+I literally gave you my cold-call notes while your head was down…doing lines off your Aldrich desk.
+
+
+Generic Xer 3 (Delilah)
+Hmmmmm. We don’t usually talk to the people who look like they post in the section Whatsapp.
+
+
+Sam (getting angry)
+Wow. Tons of work, no recognition. I feel like every conference organizer at HBS right now. 
+
+
+DJ Blasts Happy by Pharrel. 
+
+
+Sam
+DJ! Does anyone at this party look happy to you?!
+
+
+DJ panics and cuts the music.[jh] The CAMERAPERSON turns.
+
+
+Lydia (as Frederik covers his ears)
+Please stop raising your voice. He has very sensitive ears since the lobe reduction.
+
+
+Andy sneaks around [ji]the back motioning Samantha to keep going.
+
+
+Delilah
+Call off the attitude—or we’ll tell our daddies!
+Andy swaps the tape. Camera powers down.
+Sam(smiling)
+Here’s the thing. I don’t care who your daddy is!
+
+
+She “accidentally” spills a drink on them. The Xers shriek and scatter.[jj]
+
+
+Andy
+One camera down, 2 to go! The end there was kind of bullying, but my husband says sometimes spanking is a good thing.
+
+
+Leo reunites with Sam and Andy[jk]
+
+
+Leo
+I’m generally anti-deportation, but sending those three away from Gala? Happy to make an exception.
+
+
+Sam
+Any luck finding the second camera?
+
+
+Leo
+No smoke. These cameras are harder to find than a job that sponsors internationals.
+
+
+Denise, recognizing Leo’s voice, grabs his shoulder. A cameraperson nearby.
+
+
+Leo (before Denise can speak)[jl]
+Denise?
+
+
+Sam
+Who the hell is that?
+
+
+Denise
+Wait—how did you know it was me? We never actually met.
+
+
+Leo
+I looked you up. I had to. I felt like we connected. Did you… also stalk me?
+
+
+Denise (pointing to Sam)
+Just recognized your voice…Is she your date?
+
+
+Leo
+No!
+
+
+Sam
+Wow. He answered so fast.
+
+
+The cameraperson turns to them
+
+
+Leo (rambling)
+No No, we’re just partners. Wait. I mean. Not partners like romantic partners but like partners in crime on a mission.
+
+
+Andy (whispering, circling behind the camera)
+ At ease, soldier. Abort sentence. (motions to Leo with cutting neck)
+
+
+DJ Blasts All of Me by John Legend for 3 seconds. Leo freezes
+
+
+Leo
+DJ! What are you doing? Only part of me wants all of her!
+
+
+Denise
+A mission? Please. You’re worse at lying than an EC pretending they didn’t use AI on their finals.
+
+
+Leo
+It’s not a lie—we’re trying to take down HBTV!
+
+
+-Andy face palms as the camera starts to turn around
+
+
+Sam (getting the Camera attention back)
+Sorry—mezcal and celsius at the pregame. He’s having a rough night.
+
+
+Denise (sigh)
+Look…I liked you Leo... at HBS, a real-world six is a ten. Unfortunately, that’s you. 
+
+
+Sam
+That math is offensive to everyone. 
+
+
+Leo
+I’m a real world 10! A diez (spanish). A das (hindi). A shi (chinese)!...So, wanna go out sometime?
+
+
+Andy grabs the camera, swaps the tape. The camera powers down as the cameraman checks it and walks away.
+
+
+Denise
+Fine—you, me, runny Grille froyo tomorrow? (Leo thumbs up)
+
+
+Andy
+Outstanding work, Private. Two cameras down. 
+
+
+Sam, Leo, Andy walk through dance floor.[jm] They run into Mia.[jn]
+
+
+Mia (gesturing to Sam and Leo)
+Where have you been? You two making out or something?
+
+
+Leo
+That’s an invasive question, Mia. Don’t make me report you to our Community Values Rep.
+
+
+Sam 
+And what would they do? Lead a group reflection where nothing gets solved and everyone gets offended?  
+
+
+Mia
+Whoa, relax. You’re more uptight than I am waiting for grades to come out! Did you find any cameras?
+
+
+Andy
+We just took down two out of three.
+
+
+Mia (ignoring him and looking around)
+One camera left. I wonder if…
+
+
+Mia moves to the DJ booth—then freezes as REZA stops her.
+
+
+Reza
+Mia! Didn’t think I’d see you after Shark Tank. But emerging from failure? That’s founder mindset.
+
+
+Mia (distracted)
+Oh—hi, Professor Satchu. Yeah, I’m actually not sure entrepreneurship is for me. I was thinking of staying in school. Maybe getting a PhD.
+
+
+As Reza leans in, CAMERAMAN #3 appears behind the DJ booth. Mia clocks it—eyes widen. DJ starts playing “We are the champions.”
+
+
+Reza (getting emotional)
+That’s the problem with you HBS kids. You always want to do something you're “passionate” about ——
+
+
+Mia
+Professor, did you pay the DJ under the table to make your ProfessorTake more inspirational?
+
+
+Reza
+Showmanship is important to convert cult members…
+
+
+The CAMERAMAN turns fully toward Mia.
+
+
+Mia
+With all due respect, sir, at HBS, only students are allowed to share trauma publicly and get applause for it.
+
+
+Reza
+Without me, you’ll peak here!
+
+
+Mia
+I am NOT going to peak.
+
+
+Mia punches Reza, and he trips and falls. Record scratches and music stops. Cheering from the crowd! Mia is looking around panicked. Recognizes what she just did.
+
+
+Mia
+Uh.. yeah… Yeah I punched Reza. And I’ll do it again!
+
+
+Mia runs to the DJ booth, shoves DJ aside, grabs the mic, and climbs on top— Enter BANNON and HARVEY, flanked by goons.
+
+
+Mia
+Hey Steves! This isn’t what it looks like…
+
+
+Steve Bannon (Grabs mic from Mia)
+It looks like the woke left tried to stage a coup… and failed!
+
+
+Goons capture Mia and we see they have captured Sam and Leo[jo]
+
+
+Mia
+You guys! What happened? How did they find us?
+
+
+Steve Harvey
+Please. Of course we found you. Denise walked us right in.
+
+
+Sam (too excited)
+I knew it! She was a plant the whole time. 
+
+
+Leo (heartbroken)
+I trusted you. And you let me——I mean, us down. I thought maybe we had something. Why?!
+
+
+Denise
+Leo, please. We were never going to work. You asked me to go to Felipe’s. What’s next—Grafton’s? Besides… it isn’t me you’re into.
+
+
+Leo
+What?
+
+
+Denise
+Dumbass, look around. Leo looks at Sam 
+
+
+Steve Harvey
+Alright, that’s enough. Get her out of here—she’s done her part. Goons escort Denise away
+
+
+Steve Harvey
+Plus, thanks to you geniuses, we finally flushed Andy out of the tunnels.
+
+
+Mia
+But you still haven’t caught him! Andy—and the ETAs—are still coming for you!
+
+
+Steve Harvey
+We’ll see about that. Survey says… you’re screwed. Can’t wait to see what the Network Execs do with our brave little RCs.
+
+
+Andy (popping out of crowd as friends dragged away)
+Oh…No. I knew I shouldn’t have come out in public.
+________________
+Scene 11: ‘Network Pushback and Showdown’
+Characters: Mia, Leo, Sam, Andy, Exec 1, Exec 2, Exec 3, Exec Intern, ETA 1, ETA 3 [jp]
+Location: Lights up on the Boardroom. Three NETWORK EXECUTIVES in identical are hushedly scribbling. The intern scribbles on a whiteboard: “RATINGS ∨, CHAOS ∧.”[jq][jr]
+HBS Intern (sheepishly)
+[js]1, if you had a moment, I needed to speak to you about something…
+Exec 1 (Distracted)
+Intern! I told you we’d talk about full-time later. Graduation’s in a couple of weeks—you don’t need a job yet.
+HBS Intern
+Figures. (whispers) It’s not that. The latest numbers from Gala are in, and ratings dropped three points after the main characters interfered with our cameras.
+Exec 2
+Stop harassing the boss, intern. Believe me, takes a harasser to know a harasser.
+Exec 3
+You’re making this place psychologically unsafe for the three of us. Don’t think we won’t sue you for being annoying.
+Exec 1
+[jt]Enough! I thought we had the main characters under control. This plan was supposed to work with minimal consequences.
+
+Exec 3
+This is worse than when 2 warned students about a rabid raccoon instead of an actual active-shooter situation at Continuum.
+Exec 2:
+(mumbling, embarrassed) I thought we handled that fine. Students only had to sleep outside one night.
+HBS Intern (shyly)
+Execs—one more piece of bad news. We’ve lost the ETAs. Latest intelligence suggests they changed their home base after we discovered the rebellion.
+Exec 3
+We know that, 1. Reports indicate they’re throwing a party in Boston to celebrate. Multiple witnesses saw them on the subway.
+Exec 2
+They went to Boston on the subway? Not Uber? They really are tough.
+Exec 1 (buries head in hand)
+Please God, give me some good news.[ju]
+The doors WHOOSH. SECURITY hustles in MIA, SAM, and LEO with zip ties that are fancy branded lanyards.
+[jv]
+Exec 1:
+Holy crap. Maybe my ritual sacrifice of last year’s intern actually worked.[jw]
+Exec Intern
+Excuse me?
+Exec 1:
+[jx]Look who it is. The “stars” (airquotes) of the show.
+Leo
+If this is about connecting with Denise, I can explain. I was being emotionally honest—like that PE bro in LEAD who said he felt like an “O” not an “X”
+Mia
+I can explain! They brought in that DJ for Holidazzle—and then brought him back again. I was doing community service!
+Sam
+If this is about spilling a drink on Section X, I can explain! I was only—nope got nothing. Jail for me I guess. Damn. First one in our HBS class.
+Exec 3
+Do you think we brought you here with armed guards because you made fools of yourselves at Gala? You will get Andrew for us and you will give up the rebellion. 
+Andy’s Voice (offscreen)
+Pardon the interruption but your regularly scheduled meeting will resume shortly. Only my husband calls me Andrew.
+Execs gesture. A TECH cuts the audio.
+Exec 3
+Cute. Where is he hiding? Tell us. Or else.
+[jy]
+Leo
+Or else what? You’ll make us choose between snow bunnies or slaw bunnies?
+Exec 2[jz]
+What’s a slaw bunny?
+Leo
+Slob on these nuts. We’re not giving him up.
+Exec 1
+Tsk, tsk, tsk. Don’t tempt 2 with a good time. What about you, Sam? Come back home. To us.
+SAM
+I can’t sell them out. I’m rebranding as a hero. Sheryl Sandberg did it after Facebook. I can too. I’m leaning in.
+Exec 1
+How disappointing…and you Mia, defying an authority figure, really? How utterly unlike an HBS student.
+Mia(nodding to Sam - defiant)
+You aren’t our bosses anymore. You’re just using us until the next class comes along. We didn’t come here for this.
+Exec 1 (smiling)
+How childish. You think you belong here? That you earned your seat?
+Exec 2
+Poor Mia. Working her entire life just to put Harvard on her resume.
+
+Exec 3[ka]
+Grinding unseen hours in office towers so an admissions committee can tell you you’re special…when you’re really not.
+Mia
+What…what are you talking about?
+Exec 1
+You all were made for this. Sam, a social gravity well. Leo, a romance fog machine. And Mia…(pauses, looking at her).
+(Exec 4 taps a tablet. A dossier of MIA fills the main screen. Red stamp: “ADMISSIONS: REJECT.” Then another stamp: “NETWORK OVERRIDE.”)
+All Execs (eagerly, vindictively)
+An insecure admissions mistake![kb]
+Beat for the audience to take screen change in. The air leaves the room. SAM and LEO both look to MIA.
+Mia (gripping table - quietly)
+(Stutters) That’s…not funny.[kc]
+Exec 1
+ Admissions said that you were too derivative, too safe for HBS. We thought you were perfect. The audience loves someone desperate to prove she belongs. That’s a season arc with legs.
+Exec 2
+Your resume? Boring! Your insecurity? It tested off the charts. On reality TV, you’re a star!
+Leo
+[kd]Mia, look at me. You are not a mistake. And I know there’s a “that’s what she said” joke in there somewhere but I’m not making it. Because I care about you.
+Sam
+Mia… you’re a good person. You do deserve to be here, and maybe we could get lunch together one day, in public![ke]
+Mia (to Execs - Defeated)
+I worked so hard, for so many years. I’ve never failed at anything. Run the numbers again!
+Exec 1
+No need - we triple checked the files. Hell, 3 even interviewed you, not that any of you remember that person or bother to reach out once you get in.
+
+Mia (realizing)
+3, interviewed me…? I guess some part of me always knew…[kf]
+[Song: If I Were a Boy , Singers | Mia, Goal | Mia hurt by reveal]
+Exec 2:
+Are we capturing this? Intern, are the cameras rolling?[kg]
+HBS Intern:
+Yes 2, the whole world is watching.[kh]
+Exec 1
+Mia, look at me. You can still win this thing. You can prove you’re not a mistake. That you belong here. Go do Idol. Smile for the judges, dazzle the dean, win, and put a bow on your character arc. We’ll forgive the Gala.[ki]
+Exec 3[kj]
+If you don’t, we’ll Harvard you. Say bye bye to your funding and scholarships. 
+Exec 2
+[kk]Just like your Vet who threw everything away when he quit the show.
+Leo
+You don’t have to listen to them, Mia. Don’t be stupid.[kl]
+Mia[km]
+I’M NOT STUPID! And you guys keep talking down to me like I’m a kid. Just leave me alone. 
+
+
+Sam
+Mia…
+Mia(cracks, then steels)
+I don’t fail. I’m going to Idol. I’ll win, and that will settle it. For me.
+The lights turn off before a red light starts flashing in the room. Andy’s runs in.
+Andy
+Run now! This is your only chance![kn][ko]
+Exec 1
+Intern, find the breach. Now!
+ALARM. The side door BURSTS. Masked ETAs flood in, wielding… name placards like boomerangs. It’s ridiculous, yet effective.[kp][kq]
+Eta #1 (Offer Pending)
+Prepare to receive technical questions…directly to the face Execs! Oh look, an intern!
+Exec Intern
+Someone sees me. Wow.
+They start throwing placards. Chaos. SAM grabs Leo’s sleeve, eyes wide.
+Sam
+We need to get out of here.[kr]
+Eta #3 (Midwest)
+Pull out, I repeat pull out.
+Leo 
+That’s what she said.
+Sam[ks]
+Not the time Leo.
+Andy
+Leo, Sam, with me.[kt]
+ETA swarm corrals LEO and SAM toward a service corridor. MIA hangs back EC 1 clocks it, satisfied.
+Leo & Sam (calling back)
+Mia!
+Mia(without looking)
+I’m sorry guys…I have to do this. Goodbye.
+Andy (final, kind)
+Mia… we are coming back for you. I swear.
+Andy locks eyes with MIA for half a second. Then gone. The ETAs yank the door. It SLAMS. The alarms cut. Execs smooth their suits like nothing happened.
+Exec 1
+Great TV. Schedule rehearsal for Idol. And somebody call Bloomberg. We need a real budget for this next bit. [ku]
+Exec 3
+Mia, makeup is waiting. Let’s make history. Or at least Thursday night.[kv]
+MIA exhales. She steps toward the door the ETAs did not take.
+Mia 
+Fine. Roll cameras.[kw]
+Blackout.
+________________
+Scene 12: ‘HBS Idol’
+Characters: Mia, Andy, Leo, Sam, Network Exec #1, Network Exec #2, Network Exec #3, Exec Intern,  Dean Datar, Matt Weinzierl, Kristen Fitzpatrick, Simon Cowell, 4 ETA soldiers, Section Xers (Fred, Lydia, Delilah), Mary and Nicole from Love is Blind, Scribe
+ 
+Location: [kx]Three judges are on stage. With two walkways serving as backstage. Andy, Sam, and Leo will be on one side when they come in. Mia and Execs and Exec Intern on the other side. Center stage is decorated like a ‘shiny floor’ competition production set.
+
+
+Dean Datar[ky]
+WELCOME to the finale of HBS Idol! I’m your host, Dean Datar. All season, our students have competed to be named HBTV’s best — a meaningless designation… but one we know any of you would literally kill for. Introducing our judges: Matt Weinzierl, Simon Cowell, and Kristen Fitzpatrick from Career Services!
+
+
+Matt Weinzierl[kz]
+I teach about space. And like the void above us, my heart is empty. I have not met a single RC since losing my job as MBA Chair.
+
+
+Simon Cowell
+Matt, if I wanted to understand emptiness, I’d research your dating history.
+
+
+Kristen Fitzpatrick
+Sweetie, you’re going to be fine. As I tell our ECs — it’s not unemployed, it’s funemployed.
+
+
+Dean Datar (without skipping a beat)
+Due to several last-minute HBTV dropouts, we’re scraping the absolute bottom of the Idol barrel tonight. First up—(checks card, squints). You’re kidding me (beams). They’ve got money and the personality that money buys — give it up for the X Groovy Gang![la]
+
+
+Frederik, Lydia, and Delilah come on stage. They are dressed as Raygun from the 2024 Paris Olympics.
+
+
+Frederik[lb]
+Deany, today, we’re showcasing an interpretive dance based on our fast-paced life at HBS.
+
+
+The group of 3 starts dancing to EDM-style music, miming HBS experiences such as serving food at Spangler, raising name cards, and drinking and puking.
+
+
+Simon Cowell (Slams red buzzer[lc])
+That was worse than watching Dean Datar speak about AI.
+
+
+Kristen Fitzpatrick
+I didn’t understand it… but HBS needs you for the employment report. So I’m a yes! (green buzzer[ld][le])
+
+
+Matt Weinzierl (grandly)
+Much like the space shuttle Challenger, you did not land safely.  (Hits red buzzer)
+
+
+The X Groovy Boys slump off-stage,[lf] Dean Datar returns to center stage.
+
+
+Dean Datar [lg]
+You may notice no one sang! Due to technical issues at corporate headquarters, singing is banned tonight. And yes, we did ask your tech reps for help…and as usual…they made it worse. Commercial break![lh]
+
+
+Enter in Mia, Exec Intern, and 3 Execs on one side of stage[li]
+
+
+Mia[lj]
+No singing at Idol? Why not just call it HBS’s Got Talent?
+
+
+Exec #2
+Calm your tits, Mia. Intern, tell us why the name didn’t change.
+
+
+Exec Intern
+Because I already made the posters…
+
+
+Exec #3
+Exactly. Anticipate our needs, don’t just fill them. It’s called managing up, Intern!
+
+
+Intern (To herself)
+I have a name you know…
+
+
+Exec #1
+Besides it was you ETAs who damaged our audio during your attack on HQ. If anyone sings tonight on air, it’ll blow the sound transmission and kill the ratings.
+
+
+Mia
+I’m not an ETA…not anymore. If I can’t sing, what am I supposed to do? I’m not a hungover RC in the second semester. I can’t just make shit up!
+
+
+Exec #2
+This is already rigged for you to win, Mia. All you have to do is go out there and model.
+
+
+Mia
+Like handsome judge Weinzierel does during the MBA summer?
+
+
+Exec #3
+I thought you were the smart one. Model as in financial model, on screen, in public! The computer will be set up on stage and everything.
+
+
+Mia
+That sounds sooooo boring…
+
+
+Exec #2
+Have you ever seen a Fin 1 professor try to do it? One mistake, all credibility gone. People will be glued to their screens.
+
+
+Exec #1
+So build your little spreadsheet, and whatever you do…don’t sing!
+
+
+Execs exit…leaving Mia backstage. [lk]Dean Datar returns for next session
+
+
+Dean Datar[ll]
+Next up, calling our dynamic girl duo - Mary and Nicole from Love is Blind! Mary rejected Leo for being a short King, so let’s see how these two measure up! 
+
+
+Mary and Nicole take the stage.[lm]
+
+
+Mary
+After exhausting our first passion - hating men - we decided to pivot to something else: Art! Today, we’re gonna be presenting a drug-induced art show for you!
+
+
+Nicole goes to the judges and hands out small baggies. Mary turns around a canvas to show a banana taped to a canvas [ln]
+
+
+Nicole (as she’s handing out bags)
+This piece is called The Separation of Manhood. What do you think, judges?
+
+
+Simon Cowell (spits it out)
+I think these drugs suck! I have done a LOT of cocaine. And this is just crushed Adderall with dehydrated Sriracha goop from the Spangler bottles.
+
+
+Matt Weinzierl
+I miss the RCs so much. Sriracha, please take me away! 
+
+
+The lights dim by the main stage as HBS Idol continues. Lights open to the other side of stage, where Sam, Leo, and Andy are hiding, preparing to hijack the stage.[lo]
+
+
+Sam[lp]
+Maybe HBS isn’t as talented as everyone thinks…
+
+
+Leo
+Speak for yourself! I actually like their art. Can’t be worse than what’s in Aldrich.
+
+
+Andy
+(Emphatically) Guys, FOCUS. Mia could be up soon. The dean said no singing…damaged audio. I wonder…(eyes go bigger)... guys, we don’t need to kill the cameras.
+  
+Sam
+All this technical lingo has got me so confused. I’m a generalist…these details scare me.
+
+
+Leo
+Yeah Andy, this isn’t MIT. We’re leaders who make a difference, not leaders who know what they’re talking about. 
+
+
+Andy
+Oh sorry - let me dumb it down to an exhibit. Exhibit 1: We make big sound (Leo and Sam nod). 2) Sound make audio go boom (Leo and Sam Nod harder). 3) Ratings tank and we buy school back (thumbs up)
+
+
+Leo
+But how the hell are we gonna do that - it's not like we can get on stage.
+
+
+Andy
+My person on the inside tells me that Mia is going last. If we can convince her to help us, we might have a shot. If anything happens, push this red button (hands button to Sam). I have an ETA extraction squad ready. 
+
+
+Leo and Sam nod in obeisance.[lq] Andy sneaks across the stage[lr] and spots Mia. [ls]
+
+
+Andy
+Mia, finally found you!
+
+
+Mia (pulling him aside).
+Andy! If the Execs find you, they’ll capture you.
+
+
+Andy
+We’re crashing Idol for you, just like we said we would.
+
+
+Mia (exasperated)
+Why do you guys keep forcing the issue? The Network’s won, okay. If faking it, and acting out the network script is what lets me stay here. I’ll do it.
+
+
+Andy
+And what’s faking it mean - what are you doing for them tonight Mia?
+
+
+Mia
+Macros. Keyboard shortcuts…
+
+
+Andy
+Instead of singing, which you love?! You’ve been playing this game for too long. Do you remember what it was like to really want something - not just the prize of having it? 
+
+
+Mia
+I don’t remember…
+
+Andy
+Well remember this…if you sing tonight. We win. But don’t sing tonight for us. Sing for you.
+
+
+Mia
+Andy,.. I can’t take the risk. I’ve made my choice.
+
+
+We go back to Dean Datar at center stage.[lt]
+
+
+Dean Datar[lu]
+Our next contestant is…. not a student at HBS?
+
+
+Random Guy / Scribe (slides on stage, speaking in serious tone)[lv]
+As a scribe, I live in the shadows. My eyes meet no one’s, but are on everyone. I understand the slightest intonation of your voice, the tremble of fear in your comment…
+
+
+Simon Cowell
+How was this person allowed on stage?
+
+
+Kristen Fitzpatrick
+Ugh, this is gonna tank our U.S. News rankings.
+
+
+Matt Weinzierl (still high)
+Are you an alien sir? Do you come in peace?! 
+
+
+Random Guy / Scribe
+Scribes too have many talents. For my first trick, I will tell you who among you is hooking up. (Points to people in the audience) You two, (a girl rushes off crying from the front of the audience, saying ‘how could you?)
+
+
+Kristen Fitzpatrick(in audience)
+They're psychic! Please o powerful scribe, tell me what our job numbers will be this year!
+
+
+Scribe
+I don’t take requests! But you should know, I sense sabotage in the force. These two (points to Leo and Sam[lw]) are trying to take down HBTV!!!
+
+
+Execs sneak [lx]up behind Leo and Sam and capture them
+
+
+Leo
+Captured again! Why does this keep happening…sir I promise, I am here, legally!
+
+
+Exec #2
+Boss, we got them!
+
+
+Exec #3
+The only one left is that hot one Andy, and we clocked him speaking to Mia.
+
+Exec #1 (sneaking up behind Andy who struggles)
+Got him too! Snuck up on him from behind!
+
+
+Leo
+Slipping in through the back. Genius. Why didn’t I think of that?
+
+
+Sam
+I’m sure you have, sicko.
+
+
+Exec #1
+Clearly, the tunnels are too good for you lot! After you see Mia beat you at Idol, we are dropping you in the Charles!
+
+
+Leo
+No!!! I hate the cold here, it’s so much warmer in my home country of…ah forget it. If these are my last words, Sam, I gotta tell you something.
+
+
+Sam
+That you met Denise and that you still really like her? 
+
+
+Leo
+Yeah, I met someone.
+
+
+Samantha looks away, while Leo pauses before continuing.
+
+
+Leo[ly]
+I met you, Sam.
+
+
+Sam (surprised)
+Leo, what?
+
+
+Mia and Andy
+We knew it! (High five, but Andy’s hands are tied so he can’t).
+
+
+Leo
+Look, I ran into Denise at Gala and realized…that temporary excitement of meeting someone isn’t love. Admiring someone, wanting to be their teammate…that’s what feels real.
+
+
+Sam
+I don’t understand…what are you saying Leo.
+
+
+Leo
+My entire life, I’ve been afraid to care about someone and get hurt, just like my mom. But I’m done with that.. Sam, I want to be your teammate. 
+
+
+Sam
+Leo, I feel the same way.
+
+
+Leo (smiling)
+Really?
+
+
+Sam
+I felt so alone before I got here and wanted to make friends that could protect me. But now I realize, I had friends around me all along. Friends like Andy, and Mia (Mia looks down), friends like you. I’m done chasing. 
+
+
+Leo
+Friendzoned? Seriously, Sam!
+
+
+Sam
+More than friends.
+
+
+Leo leans into Sam and they stage kiss.
+
+
+Exec #1
+Yuck…an actual successful romance on HBTV? Now I know for sure we’re in a fantasy.
+
+
+Mia (to herself)
+Sam called me her friend…Leo chose to commit to something.
+
+
+Exec #2
+Mia you’re up, time for the grand finale. Deany, do what we tell you to do, or we’ll can you!
+
+
+Mia begins to walk away towards the stage
+
+
+Dean Datar
+Man what a bunch of a-holes. (muttering) Please welcome our next, and final guest… She’s not afraid to make hard decisions, like leaving her friends behind to win HBS Idol. Give it up for MIA!
+
+
+Mia walks onto stage, and walks right past the computer monitor that has been set up. 
+
+
+Andy
+Sam, and Leo - the button! Call the ETAs!
+
+
+Sam (breaking herself free, reaching into Leo’s pocket)
+I’ve got it!
+
+
+Sam pushes the button and the ETAs descend freeing our protagonists and capturing the execs.
+
+
+Exec #1 (captured by the ETAs)
+What are you doing Mia? - You’re ruining EVERYTHING. Don’t you want to win? Just do your job like a good little associate.
+
+
+Mia
+1, seriously…just shut - the - fuck - up! I’m tired of everyone having an opinion on what I should or shouldn’t be. I’m changing my script. I’m doing me…!
+
+
+Mia starts breaking out in song, the other 3 protagonists rush the stage during song.
+
+
+[Song: Golden, Singers | Mia + Leo, Sam, Andy , Goal | Mia turns against show, characters rally]
+
+
+4 of them end with arms around each other’s shoulders. 
+
+
+Simon (round of applause)[lz]
+I’ve made so much money stealing from One Direction. Do you 4 want to be next?
+
+
+Matt
+Out of this world! Andy, can you hire me back if you end up buying the school?
+
+
+Kristen
+Free coaching sessions for all of you! Just need to book 3 months in advance!
+
+
+Exec #1s Cellphone rings. [ma] 
+
+
+Exec #1
+Is that my cellphone? Please Andy, please let me take it!
+
+
+Andy (grabbing cellphone and handing to someone else)
+I don’t think you’re in charge anymore. Jennifer, would you mind taking 1’s call?
+
+
+Exec Intern (Jennifer)
+With pleasure Andrew! 
+
+
+Exec #2
+Intern! You’re with this boy scout? The betrayal!
+
+
+Exec Intern (patting 1’s head)
+That’s right Execs! Andy actually remembered my name. Now if you’ll excuse me, I have to take this call. It’s from the Board. (On cellphone)...uh huh, ratings tank. Execs fired, I’m in charge! (contains herself). I’m in charge. Acquisition offer…bonus package for adhering to the Chevron deference. Deal.
+
+
+Andy
+And here is the contract…
+
+
+Exec Intern signs,[mb] and ETAs start cheering!
+
+
+Dean Datar
+Andy, I think that’s our show…want to do the honors?
+
+
+Andy (off-stage)[mc]
+Welcome to HBTV! My name is Andy – NOT Dean Datar – and I’m here to announce that the Exiled Troupe of Actors, The ETA’s have officially bought back HBTV. From Klarman Hall, goodnight!
+
+
+Music crescendoes and the lights goes out.
+
+________________
+Scene 13: ‘Epilogue’
+Characters: Mia, Andy, Mia, Leo, Sam, 2 new RCs
+
+
+Location:[md] The same space we opened the show with — but clearly off air. The cameras are gone. The         desk is cluttered with posters, Spangler lunchboxes, half-drunk iced coffees, etc. Our four leads lounge comfortably around the desk and chairs.
+
+
+Andy
+So… how were everyone’s summers? Haven’t seen you all since the Idol insanity at the end of RC.
+
+
+Sam
+I needed a break. From the people. Mostly the people.
+
+
+Leo
+Can you believe Sam didn’t socialize with anyone all summer…
+except me?
+
+
+Mia(grabbing Sam’s hand)
+Leo, a summer with you is plenty of socialization for anyone. (They all laugh)
+
+
+Andy
+I’m just happy you’re all back. The new RCs are coming in today, and I could use the extra help onboarding 900 new overachievers.
+
+
+Two new RCs roll in wide-eyed and our 4 leads watch.
+
+
+RC 1 (beaming, slightly too loud)[me]
+I did it. The most original path imaginable — Harvard Business School.I committed.
+
+
+RC 2 (already scanning the room looking for others to talk to)
+Isn’t it wonderful?I have a feeling I’m going to be excellent at having opinions about other people’s businesses.-
+(They high-five. Protagonists groan.)
+RC 1 - Young Reza
+I’m excited — but there’s no way I’m spending more than two years here.Who would ever do that?
+
+
+RC 2 - Young Kevin 
+Usually, I’d say if you want a friend, get a dog. But I think you might just be the exception. 
+
+
+They walk away, checking their reflections on their phones on the way out.
+
+
+Mia
+Andy… are we secretly still on TV? Because those two were absolutely smiling for the cameras.
+
+
+The Dean walks in and stands next to them.
+
+
+Dean Datar[mf]
+Actually, HBS students were performing for each other long before we sold to the Network. The only difference was…we finally put cameras on you.
+
+
+Leo
+El Deano! I thought the ETAs fired you when we bought back the school?
+
+
+ Dean Datar
+Andy — that big, soft-hearted lug — let me keep my job,
+as long as I promised to never sell the school again. Thank you, Andy.
+
+
+Andy
+No problem. I never get rid of good talent — even if they’re a little whimsical.
+
+
+Dean Datar (sitting with them)
+So… now that you have freedom in your schedules, how do you plan to spend EC year? Any interesting classes?
+
+
+Mia
+I ranked Crafting Your Life number one. I figured structured reflection with strangers was the best way to find myself. Who knows? Maybe I’ll end up teaching it one day and helping other students too…once I finish processing my feelings into a framework. 
+
+
+Leo
+I’m chilling and traveling since I’m heading back to BCG. But they’re letting me transfer to a U.S. office! Wanted to be closer to this one (nudges Sam).
+
+
+Sam
+Sure, Leo. Definitely about me and not the visa.
+
+
+Leo
+Love and immigration — two systems built on paperwork.
+
+
+Dean Datar
+And what about you, Samantha?
+
+
+Sam
+I’m working up the courage to found something again. This time… no matter what happens, I know I’ll still have my friends around me (she looks around and smiles).
+
+
+Andy
+My schedule is sooo packed - I’m taking all of the classes.
+
+
+Dean
+Look at you, taking full advantage of our world famous curriculum!
+
+
+Andy
+I have to! You were right Dean Datar - HBS is not profitable. Why didn’t I buy an HVAC company?! Margins are incredible.
+
+
+Dean Datar
+And miss out on this beautiful place? You’re exactly where you’re supposed to be. Before we part, Andy… one small favor. Can I sign off the show one last time from my desk? For old time’s sake?
+
+
+Andy
+Of course. But are you sure you want to?
+This doesn’t feel like the end of the show (smiles). Feels like just the beginning.
+
+
+Leo
+If there’s one thing I learned from Sam this summer…
+it’s that you never want to finish too quickly.
+
+
+Sam & Mia
+Shut up. Leo.
+
+
+Lights out
+
+
+[Song: Any Way You Want It, Singers | All Cast , Goal | End of Show]
+
+
+
+
+
+
+
+
+
+
+[a]Tech full run script, WIP based on director creative direction: https://docs.google.com/document/d/1sA8OJf-qK-m7FseRrsXoSRQNzY57iyJ7biM0DDwiqBU/edit?tab=t.9fojdtcup602
+[b]@tech take down the show background and just have back screen 
+
+
+all lights off to start
+[c]@prop: Stage set: Long table on stage right, with a 3 person couch on stage right. If couch is not possible then we just have 4 chairs
+[d]Enter stage left with props in hand, slowly walk towards center stage as delivering the line
+Feeling a bit annoyed/anxious about keeping things on time 
+
+
+@Props: clipboard, pen, headset, wrist watch
+@tech: spot light, and lights slowly comes up
+[e]Hand on headset as if talking to ppl in it
+[f]check wrist watch
+[g]@tech flash screen with 30 seconds timer
+[h]Enters stage right. Excited with wonder and amazement in voice. Straightens out her clothes as she enters 
+
+
+Add dramatic pause as she says "Harvard" if possible with Bostonian accent
+
+
+Slowly walks towards stage center
+[i]Enter stage right together with Andy, right behind Mia
+[j]If possible, can we sing "famous"
+[k]Enters with Sam on stage right and then walks ahead of the girls as he tells the story to stage center
+[l]Enters stage right a few moments after the rest of the mains a little bit frantic and slightly disheveled . No need for running, just a brisky walk
+[m]Stagehand: checking and looking around to make sure everything is in place.
+[n]Stagehand shoos the characters of the stage as they exit stage right together. 
+
+
+Stagehand takes one last look at the set-up with a firm nod that everything is in place, they exit as well. 
+
+
+@tech lights go off.
+[o]Starts seated at his table
+
+
+@tech lights go up
+[p]@tech/@prop we can make this a tech thing or make signs that say this - let's see what works best for Klarman. Signs might be too hard to see
+[q]Stagehand can be on the side to pump up the crowd
+[r]Dean: start seated but can get up and start pacing around the stage
+[s]Andy enters from stage right
+[t]Andy salutes toward the Dean and then to the crowd. Dean Datar starts walking back as Andy walks on stage
+[u]Prop: cue cards that he's using to introduce the candidates
+[v]Walks right up to the Dean, salutes him with his back to the audience. Very serious 
+
+
+Stagehand is off to the side on the left of stage, dramatically facepalms and makes movements to cue Andy to turn around and face the audience, signalling him to smile. And immediately whispers back into the mic commenting on all sorts of things
+[w]Dean waves Andy to be "at ease"  and to sit down but he's still standing straight up, feet planted hands behind his back. Dean gives up, rolls his eyes and continues
+[x]Note action
+[y]Enter from stage right, wave a little, BIG smiles. She walks right past Andy, scouts him over to stage right so she's next to the dean. 
+
+
+Andy looks confused for a moment but continues standing at attention
+[z]In a "loud whisper" voice, with her hands covering her mouth as if she's whispering
+[aa]@tech if we can flash up a sponsored by "NetflixTokGPT" logo that would be fun
+[ab]Enter stage right, checking out the crowd before sitting down in the chair next to Andy. One arm swung back and one leg cross over, winking at the crowd
+[ac]Puffs his chest up as if trying to pop off a button
+[ad]standing but side eyes Leo as if checking him out and finally relaxes his stance and sits down next to Leo. But still sitting very straight up
+[ae]Note action
+[af]Speak with your hands. Cause Leo always speaks with his hands
+[ag]Looks sus but flips through cue cards and moves on
+[ah]Enters stage right with confidence and walks right up to the Dean to shake his hand. Dean reluctantly takes it
+[ai]Walks to the center of the stage
+[aj]Tries to push Sam aside so she can sit in the seat right next to the Dean but Sam looks disinterested and refuses to budge. 
+
+
+Andy notices and offers Mia his seat, and push/shifts Leo down one seat
+[ak]stand and cross to Mia; putting hand on her shoulders and asking her directly
+[al]Dean looks over and points to Mia with his pen
+[am]stand upright
+[an]Andy looks over to Leo and sits down
+[ao]Everyone looks over at Leo... pause... awkward silence
+[ap]Shifts his eyes to look directly at the audience and crosses his hand on the table
+[aq]All four leads wave/signal goodbye and stand up kind of confused about where to go. Stage hand rushes on and ushers everyone off the stage. 
+
+
+@tech lights go out
+[ar]Dean ends with "will it be leo? andy? mia? sam?" - each person stands and poses as they hear their name
+[as]note: might have to push chairs back/ take off stage based on space for klarman
+[at]All main cast are waiting on stage right, chitchatting amongst themselves, fixing their outfits etc.
+
+
+Stand: Andy, Leo, Sam and Mia
+[au]@prop: stage set-up: depends on what furniture we have at Klarman but either: 1 table with 1 buzzers on it so 2 members of cast are fighting for the buzzer. Table can't be too bigger for this to work. 
+
+
+Tabler is center stage
+[av]Enters from stage left
+[aw]@prop: lipstick and compact mirror
+[ax]Deliveries line while doing makeup and snaps mirror closed at the end of the sentence
+[ay]Put's his arm around Andy and gives him a side hug
+[az]Shrugs up Andy's arm
+[ba]Andy shakes his head
+[bb]Andy throws up his hands but obediently goes to the corner and stands legs shoulders width apart, straight back and hands behind his back
+[bc]stands close to front on stage right
+[bd]Leo winks at Sam, Sam looks away disgustingly
+[be]Main cast moves towards two sides with their team mates
+[bf]Holds her 3 ring binder with paper flying out
+
+
+@prop: binder
+[bg]@prop: prepared notes and folder. 
+Sam's are tucked in a slick looking folder vs Mia's in a large 3 ring binder
+[bh]Moves towards front of center stage
+[bi]Mia and Sam set-up the center first
+@prop: buzzer
+[bj]@tech: buzzer sound
+[bk]Everyone turn and stares at Mia
+[bl]Points towards to the board
+[bm]@prop/tech: let's discuss on whether this a physical board or if we can put this up on the screen
+[bn]Let's try having Steve Harvey circle around the 2 as he is asking and feel free to take up space on the stage.
+[bo]@tech: need a incorrect buzzer sound
+[bp]Sneaks up behind Andy to ask this question
+[bq]Walks over to Leo
+[br]@tech: incorrect buzzer sound
+[bs]Scurries over to Andy and Mia's side
+
+
+Sam get's frustrated at Leo, urging him to be more serious
+[bt]@Tech/Prop: Slide change
+[bu]@tech: Incorrect buzzer sound
+[bv]Runs over to Leo, puts his arm around him, tips his handheld mic over to Leo
+[bw]@Tech/Prop: board change
+[bx]@tech: Incorrect buzzer
+[by]Delivers this part center stage
+[bz]Puts in a BIG smile but the moment the cuts, he drops his 'stage' smile, rolls his eyes and trys to take off his headsets.
+[ca]Tech: TBD how we show this
+[cb]@prop, clapper + "CUT!" - stagehand starts combing steve's mustache
+[cc]Was on his walk out, now walks over to the scoreboard that's being rolled on from stage left. 
+
+
+@prop: need to figure out how we want to design the scoreboard
+[cd]Enters from stage right
+
+
+Have network exec intern follow on stage as well with a notebook and pen taking close notes
+[ce]@prop: headset
+[cf]Exits from stage left
+[cg]Was about to exit with Exec #1 but loops back (annoyingly) and ushers the main cast off the stage
+[ch]Main cast exits stage right
+[ci]Trees like in the superbowl
+[cj]students enter stage left to front left - land in diaganol
+
+
+@prop, tiki torches, neck gaiters
+[ck]sam scoots a way in reaction
+[cl]Sam look offstage/stage left
+[cm]enter stage to down right until you're between two tiki torches; really embody jeff probst
+[cn]gesture to up center - @props, four stones/stools set up center
+[co]@prop textbook from some hbs prof?
+[cp]enter stage left to center stage
+[cq]looking around
+[cr]drop bags/suitcase; cross to Fred
+[cs]hand Sam her bag
+[ct]Scoot sam back toward Normies group
+[cu]waving and smiling
+[cv]look to audience
+[cw](checks notes)
+[cx]walk forward slightly; sit, pull out burner, pan, ingredients from her suitcase
+@props: suitcase, burner, pan, food/ingredients, utensils
+[cy]^Genevieve  to bring all this lol camping stove and all haha
+[cz]cross to mia - sit
+[da]Leo puts a spoon in her mouth. Shocked, she takes a bite
+[db](after line) leo cross to ranjay w/ food
+[dc]Tribe X huddles. Lydia steps forward toward Ranjay, already on her phone.
+[dd]on phone
+[de]enter stage right - cross to Lydia
+
+
+cast looks up/around for helicopter
+@lights way to have crossing lights to mimic a heli?
+[df]Ask former Doordash employee for merch - Athena?
+[dg]driver exits stage left
+lydia cross to ranjay with food THEN sprays sanitizer
+[dh]stand; look around
+[di]from stage right; stand to right of ranjay
+[dj]cross halfway toward Annie
+[dk]meets Andy halfway and both walk to normies together with Andy leading
+[dl]run toward front right/left, then to back where wood is, cross back to center front
+[dm]Sam grabs the grass people who become the shelter
+[dn]sit under shelter and say "viola!"
+[do]grass people shortly go back to original position
+[dp]can use your own phone and cross toward stage front left and then pace along stage left walkway
+[dq]stop pacing at "oh the horror" and start crossing to sam back on main stage
+[dr]cross to sam
+[ds]cross to sam
+[dt]exit stage left
+[du]sam stays toward stage right to show physical separation
+[dv]lights center on normies as they go to sit on stools
+[dw]note: door dash person is kj or one of stage mgmt
+[dx]lean over toward Sam, don't have to walk
+[dy]enter stage right
+[dz]cross to stage center and face audience
+[ea]@prop: stage set-up: two back to back comfy couches
+
+
+A thought for us to try, instead of going black out during the scene transitions, we show the full crew running around trying to set-up for the new scene (TBD) Exec Intern and stage hand can always be in there
+[eb]@prop: Stage set-up: have back to back comfy chairs, rugs, a little table stand beside the chairs and throw pillows, a lot a lot of throw pillows. If we have more than 2 chairs, make sure they're "v" shaped so that we can see all the chairs. 
+
+
+@tech: lights go out and then on to signal the new scene starting.
+[ec]Nick and Vanessa enter from stage right and walk towards center stage
+[ed]reads awkwardly
+[ee]Enter from stage left as a group and "chitchatting" as they meander in
+[ef]Comes over, separates the girls and guys. Usher the ladies to walk over to stage right side. they're standing in the back off to the side
+
+
+The guys are on stage left
+[eg]A thought: perhaps we give the girls, a few cushions/a rug or something to sit on as they're watching on the action
+[eh]Vanessa stops Andy from sitting down and he exits from stage left
+[ei]Leo is seated in his pod on stage left. Mary enters from stage right and sits down
+[ej]Prop: Pen and very fluffy/pom pom pen
+[ek]Makes a big X dramatically on her page
+[el]Stands up dramatically and walks off, exiting from stage right
+[em]Leo stands up strugs and high fives Lucas who is entering from stage left and stands off to the back of stage left. While Leo is waiting, he can be swiping 
+
+
+Stagehand/signals Mia to stand up and take her seat in the pod.
+[en]Vanessa reappears from stage left to make the announcement
+[eo]winks at the crowd
+[ep]Stands up, exasperated
+[eq]Mia exits to stage right upset
+[er]Nick pops out from stage left to make the announcement
+[es]Nicole enters from stage right and settles in all comfy, feet up
+[et]Does a little spin and kisses Leo goodbye
+[eu]delivers this line as she walks onto the stage from stage right and plops down on the couch. no pen/notebook
+[ev]Stands up and sashays off stage from stage right
+[ew]Nick Vanessa enter from stage left. And sandwiches Leo
+[ex]the trio starts walk towards stage center as they are talking
+[ey]@Prop/tech: Leaderboard
+[ez]Turns around and speaks directly to the audience
+[fa]the two link arms and scurries off stage right
+[fb]stage crew comes on and starts transitioning while sam and leo have their talk on stage
+[fc]Stands up and waves Vanessa/Nick off as she walks to stage center where a confused Leo is
+[fd]Sam exits stage right
+[fe]comes running out from stage left just as Sam is leaving
+[ff]@prop: stage set-up: Same set-up as HBS Shark tank. 3 chairs (curved) on stage left
+[fg]Starts stage center left towards the front of the stage
+[fh]Kevin starts walking up to Reza
+[fi]Starts seated
+[fj]Or HLS/HKS cross registrant
+[fk]The three panelist sits back
+[fl]Main cast are huddles on towards the back of stage right
+[fm]Still standing, and points to Leo and waves him to start
+[fn]Leo walks up to center stage and faces the judges as he's pitching
+[fo]Leo walks off stage with some swagger, pumping up the crowds to cheer for him and joins Mia and Sam
+[fp]Walks to stage center and faces the judges/audience as he's pitching
+[fq]Sam gasps
+[fr]@prop: sample diaper slapped on with a huge logo - this can be product placement for one of our sponsors.
+[fs]Andy puts on the diaper
+[ft]Glenn is still playing with the diaper, Andy tries to take it back from Glenn and then walks back to join Mia and Leo
+[fu]Sam walks over in front of the judges, super confident and ready to go.
+[fv]Makes a zero sign with her hands
+[fw]Sam walks back to stage right, swapping spots with Mia
+[fx]Holds up his hand to stop Mia
+[fy]Andy shouts from the back
+[fz]Turkeydropped partners
+[ga]@dpakkmar96@gmail.com Slight change from unemployed partners to turkey dropped partners
+[gb]Mia walks back to where the rest of the main cast are
+[gc]@prop/tech: scoreboard
+[gd]Andy pats Mia on the back
+[ge]Andy gives Mia hug, Sam and Leo exit from stage left
+
+
+Glenn confused.... but Andy helps him get through the chaos as dancers come on and they exit stage left together
+[gf]Main cast re-enters from stage left
+
+
+Reza and Kevin exit stage (depends on choreo)
+[gg]comes over to Mia
+[gh]Pushes all of the others aside
+[gi]Reza walks back on stage from stage left clapping
+[gj]Everyone exits stage right 
+
+
+@tech: lights go out
+[gk]@tech: Lights come on
+
+
+@prop: Stage-set up, limited here. Halftime show, reporters sitting, cast standing
+Mics held by the reporters, we can make fun logos on them
+[gl]changed: want this to be seated at a table
+[gm]Let's see if we do seated or standing
+[gn]Takes a step forward
+[go]Holds up 4 fingers
+[gp]Crying hand signs
+[gq]Note for Mia, each of these hot takes are coming out faster and hotter than the previous one. So don't be shy about really slamming them down towards the end
+[gr]@prop, think vox's surveillance room from hazbin hotel (present on screens); need 4 spinning chairs
+[gs]include one screen that shows changing count of viewers (approaching 500m)
+[gt]@prop, add to digital screen on top (maybe have this as the subheader under the org name)
+[gu]intern enters from stage left
+
+
+execs start, back to audience and watching/pointing/laughing at screen scenes.
+
+
+turn around as intern gives coffee and say lines
+[gv]then walk away toward stage right
+[gw]stand up and point to screen showing viewer #s
+[gx]walk toward execs @ stage right while talking
+[gy]enter stage right crossing past intern who is collecting coffees on table
+[gz]leo comes in first
+[ha]approach interns
+[hb]exec 2 gesture for intern to bring out chairs for each of them. all execs stand for gang to sit down
+[hc]back away from exec
+[hd]circle gang like vultures
+[he]intern nods enthusiastically
+[hf]execs be managing intern in background
+[hg]touch Mia's shoulders and more whisper this line
+[hh]break up mia and exec 1
+[hi]walk toward center stagae
+[hj]everyone crowd behind andy; intern rushes up slightly late with "yeah andy"
+[hk]stand up and cross toward stage right
+[hl]each starts backing away from andy and toward execs as their lines come up
+[hm]"HIO told me i can't go home"
+[hn]physically step between andy and gang
+[ho]intern closes door sheepishly after
+[hp]turn around back at mia who is standing with execs
+[hq]all execs say together
+[hr]point to tech team
+[hs]@prop, sofa, makeup table/mirror/high chair/itmes; dividing wall with door
+
+
+steve starts sitting in makeup chair with makeup artist on stage right; door and gang are stage left
+[ht]enter from walkway stage right
+[hu]cross toward steve as you open the door
+[hv]try to hold Leo back from sprinting in
+[hw]shoe off makeup artist. steve stands, cross to Leo and finish opening the door to let everyone in and gestures them to sit in sofa
+[hx]sit back down in chair to continue makeup; looking at mirror
+[hy]makeup person starts doing other people's faces
+[hz]walk on with clapper
+[ia]@props and stagehands take away makeup chair and roll in tv set table + 4 chairs to center stage
+[ib]seated as Mia, Leo, Sam, Steve from left to right
+[ic]@props, 3 desks, 1 host table; chairs; cameras(?)
+
+
+bannon seated stage left; gang stage right
+[id]peak over toward Bannon at "including most of SA"
+[ie]revise: do a "filming over" transition with lights and "stage manager"
+
+
+steven stand up from desks; steve starts crossing to Mia
+[if]stage manager comes on with clapper
+[ig]bannon exits stage left; gang slowly stand up from desk feeling uncomfortable and cross toward center front
+[ih]exit stage left
+[ii]The crew enters stage left, crunched over and cautiously. think spoogy-doo
+[ij]@tech - pipe hissing sound
+[ik]@Prop throne needs to be made 
+
+
+Stage right, in the corner. Andy sits on top back to the audience
+[il]@costume - ninja garb for the ETAs
+[im]@prop - masks
+[in]Starts moving out of formation towards stage center - strikes a team ending pose
+[io]Each deliver their lines as they are moving to the center
+[ip]Ending pose
+[iq]Facepalms, gets off his throne and walks towards where the cast are.
+[ir]Starts moving from their ending pose and walking towards Andy
+[is]@tech - spot light on each of them 
+
+
+moves from behind Andy, each takes their own space on center stage as they deliver their story
+[it]Starts to walk out from behind the ETAs
+[iu]Saluts Andy
+[iv]Scurries over to where Andy is, and in their formation bows to him
+[iw]Looks up but still on their knees as they deliver this line
+[ix]The ETA's exit after song
+[iy]The crew is center stage again
+[iz]Andy start pacing around as he is explaining the situation
+[ja]Pops out from stage right and shouts
+[jb]Start stage right, have a few bouncers to denote the start of the line
+
+
+Prop - tapes to denote where the lines are
+[jc]Standing in line in the order "Mia, Andy, Sam and Leo"
+[jd]Looks back to the team as she says this
+[je]@Tech - need to find techno European music
+[jf]Come on stage from the audience, Stage left
+[jg]Trying to walk off... but kind of stop ot talk to Sam
+[jh]@tech music cue
+[ji]Moves towards stage right
+[jj]Exit to stage right, makes a HUGE scene when leaving
+[jk]Leo re-enters from stage right, but super "secretively"
+[jl]Denise is in the crowd on stage right
+[jm]Center stage
+[jn]Mia enters from stage left
+[jo]Joan transform from DJ to goon and takes them off stage
+[jp]need an extra 1-2 people as "security"
+[jq]@props, super long table placed diagonally stage right
+
+
+exec 2+3 on either long end, exec 1 in center;
+
+
+intern scribbling on stage left
+[jr]@props, door frame
+[js]finnick with clipboard/whiteboard marker and start crossing to exec 1
+[jt]stand and slap both hands on table during this line
+[ju]sink back into chair
+[jv]enter stage left
+[jw]have eyes peeking through hand covered face
+[jx]stand and approach gang
+[jy]approach leo close up
+[jz]exclaim while still on stage right
+[ka]reapproach table, looking at papers. turn back to mia at "when you're really not"
+[kb]each exec says one word of the line as they circle mia
+[kc]mia walks forward to center stage
+[kd]cross toward mia, putting hand on shoulder
+[ke]start approaching mia but stop as Mia starts speaking
+[kf]@tech spotlight on mia, rest of cast is in shadow and walk off
+[kg]cross to intern
+[kh]look/gesture to audience
+[ki]go across the table so mia just looks up at you
+[kj]come to mia's right side and push leo away
+[kk]cross to mia's left side and push sam away
+[kl]trying to see mia past exec's backs
+[km]turn around from table; execs back away so friends can see mia
+[kn]enter from stage left walkway
+[ko]Add Baby Sharks in here
+[kp]enter from stage right and left walkways
+[kq]@choreo to direct?
+[kr]land center front stage
+[ks]run toward stage left
+[kt]gesture them to run down stage right steps
+[ku]exit stage right
+[kv]gesture to exit stage left
+[kw]exit stage left
+[kx]@prop: Stage set-up - Table for the judges on stage left in the back
+
+
+@tech lights out to start then spotlight as we make intros
+[ky]@spotlight on Dean
+
+
+Start center stage
+[kz]Seated at the judge's table
+
+
+@tech: spot light on judges as we introduce them
+[la]@tech lights come on as the X Groovy Gang walks on from stage left
+[lb]X Groovy Game enters from stage left
+[lc]@prop red buzzer
+[ld]@prop green buzzer
+[le]padels here - right?
+[lf]Exit from stage left
+[lg]Steps up from audience right
+[lh]@tech: lights dim out
+[li]Enter from stage right
+
+
+@tech: big spot light on the group as then enter, rest of the characters are in the dark
+[lj]Mia in the middle with the execs surrounding her like vultures
+[lk]Exits exit stage right
+
+
+@tech: lights go out, and spot light on Dean
+[ll]Dean steps up from audience right again
+
+
+@tech: lights go on as the show starts again
+[lm]Enter from stage left
+[ln]@Prop: 3 small baggies and canvas
+
+
+Would be funny to make this a reference to the retail conference goodie bags
+[lo]@tech lights dim out and spot on Sam/Leo/Andy
+
+
+Sam, Leo and Andy are on stage Right back
+[lp]Hunched over, squatting/in a huddle
+[lq]They go and sneak around and take a seat in the 'audience'
+[lr]Spotlight on Andy
+[ls]Mia enters from stage right
+[lt]Enters from right
+[lu]Spotlight on Dean
+[lv]Enter from stage left
+[lw]Spotlights over to Leo and Sam in the second row
+[lx]Come out from stage right
+[ly]breaks out of the HBS exec's hold
+[lz]Standing O
+[ma]@prop: Cellphone
+[mb]Prop: Contract
+[mc]From audience aisle
+[md]Lights on again
+[me]Enters stage left and exit stage right
+[mf]Enters stage right`;
+
+// Character voice assignments - we'll map to available system voices
+const CHARACTER_VOICES = {
+  // Main characters
+  'andy': { pitch: 1.0, rate: 0.95, voicePref: 'male' },
+  'mia': { pitch: 1.3, rate: 1.0, voicePref: 'female' },
+  'sam': { pitch: 1.15, rate: 1.05, voicePref: 'female2' },
+  'samantha': { pitch: 1.15, rate: 1.05, voicePref: 'female2' },
+  'leo': { pitch: 0.85, rate: 1.0, voicePref: 'male2' },
+  'dean datar': { pitch: 0.9, rate: 0.9, voicePref: 'male3' },
+  'dean': { pitch: 0.9, rate: 0.9, voicePref: 'male3' },
+
+  // Recurring characters
+  'steve harvey': { pitch: 0.8, rate: 0.95, voicePref: 'male' },
+  'steve': { pitch: 0.8, rate: 0.95, voicePref: 'male' },
+  'ranjay gulati': { pitch: 0.75, rate: 0.85, voicePref: 'male2' },
+  'ranjay': { pitch: 0.75, rate: 0.85, voicePref: 'male2' },
+  'ranjit': { pitch: 0.75, rate: 0.85, voicePref: 'male2' },
+  'nick lachey': { pitch: 0.95, rate: 1.0, voicePref: 'male3' },
+  'nick': { pitch: 0.95, rate: 1.0, voicePref: 'male3' },
+  'vanessa lachey': { pitch: 1.35, rate: 1.05, voicePref: 'female' },
+  'vanessa': { pitch: 1.35, rate: 1.05, voicePref: 'female' },
+  'kevin': { pitch: 0.7, rate: 0.9, voicePref: 'male' },
+  'reza': { pitch: 0.8, rate: 1.0, voicePref: 'male2' },
+  'glenn': { pitch: 0.65, rate: 0.8, voicePref: 'male3' },
+  'simon cowell': { pitch: 0.75, rate: 0.95, voicePref: 'male' },
+  'simon': { pitch: 0.75, rate: 0.95, voicePref: 'male' },
+
+  // Network execs
+  'exec 1': { pitch: 1.2, rate: 1.1, voicePref: 'female' },
+  'exec #1': { pitch: 1.2, rate: 1.1, voicePref: 'female' },
+  'exec #2': { pitch: 1.0, rate: 1.0, voicePref: 'female2' },
+  'exec 2': { pitch: 1.0, rate: 1.0, voicePref: 'female2' },
+  'exec #3': { pitch: 0.8, rate: 1.05, voicePref: 'male' },
+  'exec 3': { pitch: 0.8, rate: 1.05, voicePref: 'male' },
+  'exec intern': { pitch: 1.25, rate: 1.1, voicePref: 'female' },
+  'hbs intern': { pitch: 1.25, rate: 1.1, voicePref: 'female' },
+  'network executive #1': { pitch: 1.2, rate: 1.1, voicePref: 'female' },
+  'network executive #2': { pitch: 1.0, rate: 1.0, voicePref: 'female2' },
+
+  // Love is Blind characters
+  'mary metrix': { pitch: 1.4, rate: 1.1, voicePref: 'female' },
+  'mary': { pitch: 1.4, rate: 1.1, voicePref: 'female' },
+  'nicole nevers': { pitch: 1.2, rate: 0.95, voicePref: 'female2' },
+  'nicole': { pitch: 1.2, rate: 0.95, voicePref: 'female2' },
+  'lucas laier': { pitch: 0.9, rate: 1.05, voicePref: 'male2' },
+  'lucas': { pitch: 0.9, rate: 1.05, voicePref: 'male2' },
+  'denise': { pitch: 1.2, rate: 1.0, voicePref: 'female' },
+
+  // Section X / ETAs / misc
+  'fred x': { pitch: 0.85, rate: 1.1, voicePref: 'male3' },
+  'fred': { pitch: 0.85, rate: 1.1, voicePref: 'male3' },
+  'frederik': { pitch: 0.85, rate: 1.1, voicePref: 'male3' },
+  'section xer 1': { pitch: 0.85, rate: 1.1, voicePref: 'male3' },
+  'generic xer 2': { pitch: 1.3, rate: 1.0, voicePref: 'female' },
+  'generic xer 3': { pitch: 1.25, rate: 1.0, voicePref: 'female2' },
+  'delilah': { pitch: 1.3, rate: 1.0, voicePref: 'female' },
+  'lydia': { pitch: 1.25, rate: 1.0, voicePref: 'female2' },
+  'annie': { pitch: 1.3, rate: 1.05, voicePref: 'female' },
+  'stagehand': { pitch: 0.9, rate: 1.1, voicePref: 'male' },
+  'tribe x': { pitch: 0.85, rate: 1.0, voicePref: 'male3' },
+  'pam': { pitch: 1.2, rate: 1.0, voicePref: 'female' },
+  'jim': { pitch: 0.85, rate: 0.95, voicePref: 'male2' },
+  'steve bannon': { pitch: 0.7, rate: 0.9, voicePref: 'male' },
+  'bannon': { pitch: 0.7, rate: 0.9, voicePref: 'male' },
+
+  'eta #1': { pitch: 0.9, rate: 1.05, voicePref: 'male' },
+  'eta #2': { pitch: 0.95, rate: 1.0, voicePref: 'male2' },
+  'eta #3': { pitch: 1.2, rate: 1.0, voicePref: 'female' },
+  'eta #4': { pitch: 0.85, rate: 1.1, voicePref: 'male3' },
+  'all 4 etas': { pitch: 0.9, rate: 0.9, voicePref: 'male' },
+  'the etas': { pitch: 0.9, rate: 0.9, voicePref: 'male' },
+
+  'matt weinzierl': { pitch: 0.9, rate: 0.9, voicePref: 'male2' },
+  'matt': { pitch: 0.9, rate: 0.9, voicePref: 'male2' },
+  'kristen fitzpatrick': { pitch: 1.3, rate: 1.0, voicePref: 'female' },
+  'kristen': { pitch: 1.3, rate: 1.0, voicePref: 'female' },
+
+  'rc 1': { pitch: 1.0, rate: 1.05, voicePref: 'male' },
+  'rc 2': { pitch: 1.1, rate: 1.0, voicePref: 'male2' },
+  'rc 1 - young reza': { pitch: 1.0, rate: 1.05, voicePref: 'male' },
+  'rc 2 - young kevin': { pitch: 1.1, rate: 1.0, voicePref: 'male2' },
+  'random guy / scribe': { pitch: 0.7, rate: 0.85, voicePref: 'male' },
+  'scribe': { pitch: 0.7, rate: 0.85, voicePref: 'male' },
+
+  // Multi-character lines
+  'mia/leo/sam': { pitch: 1.1, rate: 1.0, voicePref: 'female' },
+  'sam & mia': { pitch: 1.2, rate: 1.0, voicePref: 'female' },
+  'mia and andy': { pitch: 1.0, rate: 1.0, voicePref: 'female' },
+  'leo & sam': { pitch: 1.0, rate: 1.0, voicePref: 'male2' },
+  'all execs': { pitch: 1.1, rate: 1.0, voicePref: 'female' },
+  'team': { pitch: 1.0, rate: 1.0, voicePref: 'male' },
+};
+
+// Default voice settings for unknown characters
+const DEFAULT_VOICE = { pitch: 1.0, rate: 1.0, voicePref: 'male' };
+
+function parseScript(text) {
+  // Cut off the stage direction notes at the end of the script
+  const cutoffIdx = text.indexOf('[a]Tech full run script');
+  if (cutoffIdx !== -1) text = text.substring(0, cutoffIdx);
+
+  // Remove all bracket tags like [a], [ab], [abc] etc. from the entire text
+  text = text.replace(/\[[a-z]{1,3}\]/g, '');
+
+  const lines = text.split('\n');
+  const entries = [];
+  let currentAct = 1;
+  let currentScene = '';
+
+  // Known character names (including partial matches)
+  const knownCharacters = new Set(Object.keys(CHARACTER_VOICES));
+  // Add base names for detection
+  const baseNames = [
+    'andy', 'mia', 'sam', 'samantha', 'leo', 'dean datar', 'dean',
+    'steve harvey', 'steve', 'ranjay gulati', 'ranjay', 'ranjit',
+    'nick lachey', 'nick', 'vanessa lachey', 'vanessa',
+    'kevin', 'reza', 'glenn', 'simon cowell', 'simon',
+    'exec 1', 'exec 2', 'exec 3', 'exec #1', 'exec #2', 'exec #3',
+    'exec intern', 'hbs intern', 'network executive #1', 'network executive #2',
+    'mary metrix', 'mary', 'nicole nevers', 'nicole',
+    'lucas laier', 'lucas', 'denise', 'fred x', 'fred', 'frederik',
+    'section xer 1', 'generic xer 2', 'generic xer 3',
+    'delilah', 'lydia', 'annie', 'stagehand', 'tribe x',
+    'pam', 'jim', 'steve bannon', 'bannon',
+    'eta #1', 'eta #2', 'eta #3', 'eta #4',
+    'all 4 etas', 'the etas',
+    'matt weinzierl', 'matt', 'kristen fitzpatrick', 'kristen',
+    'rc 1', 'rc 2', 'rc 1 - young reza', 'rc 2 - young kevin',
+    'random guy / scribe', 'scribe',
+    'mia/leo/sam', 'sam & mia', 'mia and andy', 'leo & sam',
+    'all execs', 'team',
+    "andy's voice", "andy(masked voice)", "andy(taking mask off",
+    'exec intern (jennifer)', 'jennifer',
+    'exec 1 (in the middle, the boss)',
+    'exec 2 (handsy and emotionally oriented)',
+    'exec 3 (ruthless capitalist)',
+  ];
+
+  // Character line pattern: starts with a character name, optionally with parenthetical/colon
+  // e.g., "Andy", "Andy (salutes)", "Leo:", "Dean Datar", "Exec #1 (in the middle)"
+  const charLineRegex = /^([A-Z][A-Za-z\s\/&#;.\-\d']+?)(?:\s*\([^)]*\))?\s*[\:\[]?\s*$/;
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+
+    // Skip empty lines
+    if (!line) { i++; continue; }
+
+    // Detect act boundaries
+    if (/^Act\s+2/i.test(line)) {
+      currentAct = 2;
+      i++;
+      continue;
+    }
+
+    // Skip the title/version lines
+    if (/^The HB\(TV\) Show/i.test(line) || /^Version:/i.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Detect scene headers
+    const sceneMatch = line.match(/^Scene\s+(\d+)\s*:\s*'?(.+?)'?\s*$/);
+    if (sceneMatch) {
+      currentScene = `Scene ${sceneMatch[1]}: ${sceneMatch[2]}`;
+      entries.push({ type: 'scene', act: currentAct, scene: currentScene, text: currentScene });
+      i++;
+      continue;
+    }
+
+    // Detect horizontal rules (scene breaks)
+    if (/^_{5,}$/.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Detect songs
+    const songMatch = line.match(/^\[Song:\s*(.+)\]$/);
+    if (songMatch) {
+      entries.push({ type: 'song', act: currentAct, scene: currentScene, text: songMatch[1] });
+      i++;
+      continue;
+    }
+
+    // Skip pure comment lines [a], [b] etc
+    if (/^\[[a-z]{1,3}\]$/.test(line)) { i++; continue; }
+
+    // Skip lines that are just comments
+    if (/^@/.test(line)) { i++; continue; }
+
+    // Skip "Characters:" and "Location:" lines
+    if (/^Characters:/i.test(line) || /^Location:/i.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Try to match a character name line
+    let charName = tryMatchCharacter(line);
+
+    if (charName) {
+      // Collect dialogue lines until next character or empty line gap
+      let dialogue = '';
+
+      // Check if there's inline dialogue on the same line as the character name
+      const inlineMatch = line.match(new RegExp('^' + escapeRegex(charName) + '(?:\\s*\\([^)]*\\))?\\s*[:\\-]?\\s*$', 'i'));
+      if (!inlineMatch) {
+        // There might be dialogue on the same line after the name
+        const afterName = extractDialogueFromCharLine(line, charName);
+        if (afterName) dialogue = afterName;
+      }
+
+      i++;
+
+      // Collect continuation lines
+      while (i < lines.length) {
+        const nextLine = lines[i].trim();
+        if (!nextLine) { i++; break; }
+
+        // If next line is a new character, scene, song, or structural element, stop
+        if (tryMatchCharacter(nextLine)) break;
+        if (/^Scene\s+\d+/i.test(nextLine)) break;
+        if (/^\[Song:/i.test(nextLine)) break;
+        if (/^_{5,}$/.test(nextLine)) break;
+        if (/^Act\s+\d/i.test(nextLine)) break;
+        if (/^Characters:/i.test(nextLine)) break;
+        if (/^Location:/i.test(nextLine)) break;
+
+        // Skip pure brackets/comments
+        const cleaned = nextLine.replace(/\[[a-z]{1,3}\]/g, '').trim();
+        if (!cleaned) { i++; continue; }
+
+        // Check if it's a stage direction (pure description, no dialogue)
+        if (isStageDirection(cleaned) && !dialogue) {
+          i++;
+          continue;
+        }
+
+        // It's dialogue continuation
+        if (dialogue) dialogue += ' ';
+        dialogue += cleaned;
+        i++;
+      }
+
+      // Clean up dialogue
+      dialogue = cleanDialogue(dialogue);
+
+      if (dialogue) {
+        const normalizedName = normalizeCharName(charName);
+        entries.push({
+          type: 'line',
+          act: currentAct,
+          scene: currentScene,
+          character: normalizedName,
+          dialogue: dialogue
+        });
+      }
+    } else {
+      // Not a character line - skip (stage direction, etc.)
+      i++;
+    }
+  }
+
+  return entries;
+}
+
+function tryMatchCharacter(line) {
+  // Remove trailing bracket comments like [ab], [cd]
+  const cleaned = line.replace(/\[[a-z]{1,3}\]/g, '').trim();
+
+  // Common patterns for character lines:
+  // "CharName" (alone on line)
+  // "CharName (stage direction)"
+  // "CharName (stage direction):"
+  // "CharName:"
+  // "CharName-"
+  // "CharName (parenthetical) text on same line"
+
+  // Try exact known character match first
+  const patterns = [
+    // "Name:" or "Name-" or "Name" at start, possibly with parenthetical
+    /^([\w\s\/&#;.\-\d']+?)(?:\s*\([^)]*\))?\s*[:;\-]?\s*$/i,
+    // Character name with inline dialogue
+    /^([\w\s\/&#;.\-\d']+?)(?:\s*\([^)]*\))\s*$/i,
+    // Name with colon and dialogue on same line
+    /^([\w\s\/&#;.\-\d']+?)\s*(?:\([^)]*\))?\s*[:]\s*.+$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const m = cleaned.match(pattern);
+    if (m) {
+      const candidate = m[1].trim();
+      if (isKnownCharacter(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+function isKnownCharacter(name) {
+  const lower = name.toLowerCase().trim();
+
+  // Direct match
+  if (CHARACTER_VOICES[lower]) return true;
+
+  // Check common variations
+  const variations = [
+    lower,
+    lower.replace(/\s+/g, ' '),
+    lower.replace(/[#]/g, '#'),
+  ];
+
+  for (const v of variations) {
+    if (CHARACTER_VOICES[v]) return true;
+  }
+
+  // Partial matches for characters with parenthetical descriptions
+  const partialMatches = [
+    'exec 1', 'exec 2', 'exec 3', 'exec #1', 'exec #2', 'exec #3',
+    'exec intern', 'hbs intern', 'eta #1', 'eta #2', 'eta #3', 'eta #4',
+    'andy', 'mia', 'sam', 'samantha', 'leo', 'dean datar', 'dean',
+    'nick', 'vanessa', 'kevin', 'reza', 'ranjay', 'ranjit',
+    'steve harvey', 'steve bannon', 'bannon', 'simon', 'glenn',
+    'fred', 'frederik', 'delilah', 'lydia', 'annie',
+    'denise', 'mary', 'nicole', 'lucas', 'pam', 'jim',
+    'stagehand', 'tribe x', 'all 4 etas', 'the etas',
+    'matt', 'kristen', 'scribe', 'random guy',
+    'rc 1', 'rc 2', 'team', 'all execs',
+    'mia/leo/sam', 'sam & mia', 'mia and andy', 'leo & sam',
+    'section xer', 'generic xer',
+  ];
+
+  for (const pm of partialMatches) {
+    if (lower.startsWith(pm)) return true;
+  }
+
+  return false;
+}
+
+function normalizeCharName(name) {
+  let n = name.trim();
+  // Remove trailing colons, dashes
+  n = n.replace(/[\:\-]+$/, '').trim();
+  return n;
+}
+
+// Which character the user is playing
+let myCharacter = 'andy';
+
+// Normalized name -> matching function for each character
+function isMyLine(charName) {
+  const lower = charName.toLowerCase();
+  const mc = myCharacter.toLowerCase();
+
+  // Main four have special matching
+  switch (mc) {
+    case 'andy':
+      return lower.startsWith('andy') || lower === "andy's voice" || (lower.includes('andy') && !lower.includes('candy'));
+    case 'mia':
+      return lower.startsWith('mia') || (lower.includes('mia') && !lower.includes('miami'));
+    case 'sam': case 'samantha':
+      return lower.startsWith('sam') || lower.startsWith('samantha');
+    case 'leo':
+      return lower.startsWith('leo') || lower.startsWith('leonardo');
+  }
+
+  // For any other character, match by prefix
+  return lower.startsWith(mc) || lower === mc;
+}
+
+function extractDialogueFromCharLine(line, charName) {
+  // Try to extract dialogue that appears on the same line as the character name
+  // e.g., "Leo: I love travel" -> "I love travel"
+  const escaped = escapeRegex(charName);
+  const patterns = [
+    new RegExp('^' + escaped + '(?:\\s*\\([^)]*\\))?\\s*[:\\-]\\s*(.+)$', 'i'),
+  ];
+  for (const p of patterns) {
+    const m = line.match(p);
+    if (m && m[1]) return m[1].trim();
+  }
+  return null;
+}
+
+function isStageDirection(line) {
+  // Heuristic: stage directions tend to describe actions, not be dialogue
+  // They often start with character actions described in third person
+  const directionPatterns = [
+    /^(?:The |A |An |Our |Two |They |He |She |Music |Sound |Timer |Applause|Enter |Exit |Lights |Spotlight)/i,
+    /^(?:.*walks |.*enters |.*exits |.*runs |.*moves |.*stands |.*sits |.*gestures)/i,
+    /^(?:.*starts |.*begins |.*reveals |.*appears |.*disappears)/i,
+    /^(?:.*leaves |.*scurries |.*storms |.*bursts )/i,
+    /^(?:Scoreboard |Loud incorrect|The board |The cameras |The lights |DJ |A pipe )/i,
+    /^(?:Beat for |ALARM|Blackout|Lights dim|Lights out)/i,
+    /screams?\s/i,
+    /^\-/,
+  ];
+
+  for (const p of directionPatterns) {
+    if (p.test(line)) return true;
+  }
+  return false;
+}
+
+function cleanDialogue(text) {
+  if (!text) return '';
+  // Remove bracket comments [a], [ab], [abc]
+  text = text.replace(/\[[a-z]{1,3}\]/g, '');
+  // Remove @tech, @prop notes
+  text = text.replace(/@\w+[^.]*$/g, '');
+  // Clean up extra whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+  // Remove leading/trailing punctuation artifacts
+  text = text.replace(/^\s*[-:]\s*/, '');
+  return text;
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+
+// ==================== TTS ENGINE ====================
+
+let voices = [];
+let voiceMap = {}; // voicePref -> SpeechSynthesisVoice
+
+function loadVoices() {
+  return new Promise((resolve) => {
+    voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      assignVoices();
+      resolve();
+      return;
+    }
+    speechSynthesis.onvoiceschanged = () => {
+      voices = speechSynthesis.getVoices();
+      assignVoices();
+      resolve();
+    };
+    // Fallback timeout
+    setTimeout(() => {
+      voices = speechSynthesis.getVoices();
+      assignVoices();
+      resolve();
+    }, 2000);
+  });
+}
+
+function assignVoices() {
+  // Try to find diverse English voices
+  const english = voices.filter(v => v.lang.startsWith('en'));
+  const females = english.filter(v =>
+    /female|samantha|victoria|karen|moira|fiona|kate|susan|zira|hazel|tessa/i.test(v.name)
+  );
+  const males = english.filter(v =>
+    /\b(male|daniel|alex|tom|james|david|fred|ralph|aaron|oliver)\b/i.test(v.name) &&
+    !/female/i.test(v.name)
+  );
+
+  // Use whatever we can find
+  const allUsable = english.length > 0 ? english : voices;
+
+  voiceMap = {
+    'male': males[0] || allUsable[0],
+    'male2': males[1] || allUsable[1] || allUsable[0],
+    'male3': males[2] || allUsable[2] || allUsable[0],
+    'female': females[0] || allUsable[Math.min(3, allUsable.length - 1)],
+    'female2': females[1] || allUsable[Math.min(4, allUsable.length - 1)],
+  };
+}
+
+function getVoiceForCharacter(charName) {
+  const lower = charName.toLowerCase();
+
+  // Try exact match
+  if (CHARACTER_VOICES[lower]) return CHARACTER_VOICES[lower];
+
+  // Try partial matches
+  for (const [key, val] of Object.entries(CHARACTER_VOICES)) {
+    if (lower.startsWith(key) || lower.includes(key)) return val;
+  }
+
+  return DEFAULT_VOICE;
+}
+
+function speak(text, charName) {
+  // Split long text into sentences to avoid the Chrome/Safari TTS bug
+  // where long utterances get silently cancelled after ~15 seconds
+  const chunks = splitIntoChunks(text);
+  const voiceConfig = getVoiceForCharacter(charName);
+  const speedMultiplier = parseFloat(document.getElementById('speed').value);
+
+  return chunks.reduce((chain, chunk) => {
+    return chain.then(() => speakChunk(chunk, voiceConfig, speedMultiplier));
+  }, Promise.resolve());
+}
+
+function splitIntoChunks(text) {
+  // Split on sentence boundaries, keeping chunks under ~150 chars
+  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+  const chunks = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    if (current.length + sentence.length > 150 && current.length > 0) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current += sentence;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.length > 0 ? chunks : [text];
+}
+
+function speakChunk(text, voiceConfig, speedMultiplier) {
+  return new Promise((resolve) => {
+    const utter = new SpeechSynthesisUtterance(text);
+
+    utter.voice = voiceMap[voiceConfig.voicePref] || voiceMap['male'] || voices[0];
+    utter.pitch = voiceConfig.pitch;
+    utter.rate = voiceConfig.rate * speedMultiplier;
+    utter.volume = 1.0;
+
+    let resolved = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(); } };
+
+    utter.onend = done;
+    utter.onerror = (e) => { console.warn('TTS error', e); done(); };
+
+    // Safety timeout: ~200ms per word + 3 seconds buffer
+    const wordCount = text.split(/\s+/).length;
+    const timeoutMs = Math.max(5000, (wordCount * 400 / speedMultiplier) + 3000);
+    setTimeout(done, timeoutMs);
+
+    // Chrome keepalive: pause/resume periodically to prevent silent cancel
+    let keepAlive = setInterval(() => {
+      if (speechSynthesis.speaking && !speechSynthesis.paused) {
+        speechSynthesis.pause();
+        speechSynthesis.resume();
+      }
+    }, 10000);
+
+    const origDone = done;
+    utter.onend = () => { clearInterval(keepAlive); origDone(); };
+    utter.onerror = (e) => { clearInterval(keepAlive); console.warn('TTS error', e); origDone(); };
+
+    speechSynthesis.speak(utter);
+  });
+}
+
+
+// ==================== APP STATE ====================
+
+let allEntries = [];
+let filteredEntries = [];
+let currentIndex = 0;
+let isRunning = false;
+let isPaused = false;
+let waitingForUser = false;
+
+const historyEl = document.getElementById('history');
+const statusText = document.getElementById('status-text');
+const speakingDots = document.querySelector('.speaking-dots');
+const sceneIndicator = document.getElementById('scene-indicator');
+const btnStart = document.getElementById('btn-start');
+const btnDone = document.getElementById('btn-done');
+const btnPause = document.getElementById('btn-pause');
+const btnSkip = document.getElementById('btn-skip');
+const btnStop = document.getElementById('btn-stop');
+const sceneSelect = document.getElementById('scene-select');
+const charOtherSelect = document.getElementById('char-other-select');
+
+// ==================== UI FUNCTIONS ====================
+
+// Get all unique scenes from the parsed entries
+function getScenes() {
+  return allEntries.filter(e => e.type === 'scene');
+}
+
+// Get the index in allEntries where a given scene starts
+function getSceneStartIndex(sceneText) {
+  return allEntries.findIndex(e => e.type === 'scene' && e.text === sceneText);
+}
+
+// Get all unique non-lead character names for the "Other" dropdown
+function getOtherCharacters() {
+  const leads = new Set(['andy', 'mia', 'sam', 'samantha', 'leo']);
+  const others = new Map(); // lowercase key -> display name
+
+  allEntries.forEach(e => {
+    if (e.type !== 'line') return;
+    const lower = e.character.toLowerCase();
+    // Skip leads
+    if (leads.has(lower) || lower.startsWith('andy') || lower.startsWith('mia')
+        || lower.startsWith('sam') || lower.startsWith('leo')) return;
+    // Skip multi-character lines
+    if (lower.includes('/') || lower.includes('&')) return;
+    // Normalize: take the base name (before parenthetical)
+    const base = e.character.replace(/\s*\(.*\)/, '').trim();
+    const baseKey = base.toLowerCase();
+    if (!others.has(baseKey)) {
+      others.set(baseKey, base);
+    }
+  });
+
+  // Sort alphabetically
+  return Array.from(others.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+function populateSceneDropdown() {
+  sceneSelect.innerHTML = '';
+  const scenes = getScenes();
+  scenes.forEach((s, i) => {
+    const opt = document.createElement('option');
+    opt.value = s.text;
+    opt.textContent = `Act ${s.act} - ${s.text}`;
+    if (i === 0) opt.selected = true;
+    sceneSelect.appendChild(opt);
+  });
+}
+
+function populateOtherCharDropdown() {
+  charOtherSelect.innerHTML = '<option value="">Other...</option>';
+  getOtherCharacters().forEach(([key, display]) => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = display;
+    charOtherSelect.appendChild(opt);
+  });
+}
+
+// Filter entries from the selected scene to the next scene (or end)
+function getEntriesForScene(sceneText) {
+  const startIdx = getSceneStartIndex(sceneText);
+  if (startIdx === -1) return allEntries;
+
+  // Find next scene
+  let endIdx = allEntries.length;
+  for (let i = startIdx + 1; i < allEntries.length; i++) {
+    if (allEntries[i].type === 'scene') { endIdx = i; break; }
+  }
+  return allEntries.slice(startIdx, endIdx);
+}
+
+function renderEntry(entry, state = 'upcoming') {
+  const div = document.createElement('div');
+
+  if (entry.type === 'scene') {
+    div.className = 'scene-header';
+    div.textContent = entry.text;
+    return div;
+  }
+
+  if (entry.type === 'song') {
+    div.className = 'song-marker';
+    div.textContent = `[Song: ${entry.text}]`;
+    return div;
+  }
+
+  const isMine = isMyLine(entry.character);
+  div.className = `line-entry ${state}${isMine ? ' my-line' : ''}`;
+
+  if (isMine) {
+    // My lines are HIDDEN by default (for memorization)
+    const id = 'line-' + Math.random().toString(36).substr(2, 9);
+    div.innerHTML = `
+      <div class="character-name" style="color:${getCharColor(entry.character)}">${entry.character}</div>
+      <div class="dialogue-hidden" id="${id}" onclick="revealLine(this, '${escapeForAttr(entry.dialogue)}')">[Your line - click to reveal]<button class="btn-reveal" onclick="event.stopPropagation(); revealLine(document.getElementById('${id}'), '${escapeForAttr(entry.dialogue)}')">Show</button></div>
+    `;
+  } else {
+    div.innerHTML = `
+      <div class="character-name" style="color:${getCharColor(entry.character)}">${entry.character}</div>
+      <div class="dialogue-text">${entry.dialogue}</div>
+    `;
+  }
+  return div;
+}
+
+function escapeForAttr(str) {
+  return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// Called when user clicks to reveal a hidden line
+window.revealLine = function(el, text) {
+  el.className = 'dialogue-text';
+  el.textContent = text;
+  el.style.cursor = 'default';
+  el.onclick = null;
+};
+
+function getCharColor(name) {
+  const lower = name.toLowerCase();
+  if (lower.startsWith('andy') || lower.includes('andy')) return '#ffd700';
+  if (lower.startsWith('mia') || lower.includes('mia')) return '#ff6b9d';
+  if (lower.startsWith('sam') || lower === 'samantha') return '#4ecca3';
+  if (lower.startsWith('leo')) return '#45b7d1';
+  if (lower.includes('dean')) return '#ff8c42';
+  if (lower.includes('exec') || lower.includes('intern')) return '#ff4757';
+  if (lower.includes('eta')) return '#c8b6ff';
+  return '#a8a8b8';
+}
+
+function scrollToBottom() {
+  historyEl.scrollTop = historyEl.scrollHeight;
+}
+
+function updateDisplay() {
+  historyEl.innerHTML = '';
+
+  const windowStart = Math.max(0, currentIndex - 8);
+  const windowEnd = Math.min(filteredEntries.length, currentIndex + 4);
+
+  for (let i = windowStart; i < windowEnd; i++) {
+    const entry = filteredEntries[i];
+    let state = 'upcoming';
+    if (i < currentIndex) state = 'spoken';
+    if (i === currentIndex) state = 'current';
+    const el = renderEntry(entry, state);
+    historyEl.appendChild(el);
+  }
+
+  scrollToBottom();
+
+  const currentEntry = filteredEntries[currentIndex];
+  if (currentEntry) {
+    sceneIndicator.textContent = `Act ${currentEntry.act} | ${currentEntry.scene || 'Intro'}`;
+  }
+}
+
+function setStatus(text, className = '') {
+  statusText.textContent = text;
+  statusText.className = className;
+}
+
+function showSpeakingDots(show) {
+  speakingDots.style.display = show ? 'inline-flex' : 'none';
+}
+
+// ==================== PLAYBACK ENGINE ====================
+
+async function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function stopPlayback() {
+  speechSynthesis.cancel();
+  isRunning = false;
+  isPaused = false;
+  waitingForUser = false;
+  signalDone();
+  btnDone.style.display = 'none';
+  btnStart.style.display = 'flex';
+  btnStart.textContent = 'Resume';
+  btnStop.disabled = true;
+  btnPause.textContent = 'Pause';
+  showSpeakingDots(false);
+  setStatus('Stopped. Press Resume to continue, or pick a new scene.');
+  updateDisplay();
+}
+
+function resetToScene() {
+  stopPlayback();
+  const sceneText = sceneSelect.value;
+  filteredEntries = getEntriesForScene(sceneText);
+  currentIndex = 0;
+  btnStart.textContent = 'Start Scene';
+  const charName = myCharacter.charAt(0).toUpperCase() + myCharacter.slice(1);
+  const myCount = filteredEntries.filter(e => e.type === 'line' && isMyLine(e.character)).length;
+  setStatus(`${sceneText} | ${myCount} ${charName} lines. Press Start.`);
+  updateDisplay();
+}
+
+async function runScene() {
+  isRunning = true;
+  btnStart.style.display = 'none';
+  btnStop.disabled = false;
+
+  while (currentIndex < filteredEntries.length && isRunning) {
+    if (isPaused) {
+      await sleep(100);
+      continue;
+    }
+
+    const entry = filteredEntries[currentIndex];
+    updateDisplay();
+
+    if (entry.type === 'scene') {
+      setStatus(`--- ${entry.text} ---`);
+      await sleep(1500);
+      if (!isRunning) break;
+      currentIndex++;
+      continue;
+    }
+
+    if (entry.type === 'song') {
+      setStatus(`[Song: ${entry.text}] - Press Space to continue`, '');
+      waitingForUser = true;
+      btnDone.style.display = 'flex';
+      btnDone.textContent = 'Continue Past Song (Space)';
+      await waitForSignal();
+      if (!isRunning) break;
+      btnDone.style.display = 'none';
+      waitingForUser = false;
+      currentIndex++;
+      continue;
+    }
+
+    if (isMyLine(entry.character)) {
+      setStatus(`YOUR LINE - read it aloud, then press Space`, 'your-line pulse');
+      btnDone.style.display = 'flex';
+      btnDone.textContent = 'Done - Continue (Space)';
+      waitingForUser = true;
+
+      await waitForSignal();
+      if (!isRunning) break;
+
+      waitingForUser = false;
+      btnDone.style.display = 'none';
+      currentIndex++;
+
+      const pauseDur = parseFloat(document.getElementById('pause-dur').value) * 1000;
+      await sleep(pauseDur);
+    } else {
+      setStatus(`${entry.character} speaking...`, 'speaking');
+      showSpeakingDots(true);
+
+      await speak(entry.dialogue, entry.character);
+      if (!isRunning) break;
+
+      showSpeakingDots(false);
+      currentIndex++;
+
+      const pauseDur = parseFloat(document.getElementById('pause-dur').value) * 1000;
+      await sleep(pauseDur);
+    }
+  }
+
+  if (isRunning && currentIndex >= filteredEntries.length) {
+    setStatus('End of scene! Great job.', '');
+    updateDisplay();
+  }
+
+  isRunning = false;
+  btnStart.style.display = 'flex';
+  btnStart.textContent = 'Restart Scene';
+  btnStop.disabled = true;
+  showSpeakingDots(false);
+}
+
+function waitForSignal() {
+  return new Promise((resolve) => {
+    window._resolveSignal = resolve;
+  });
+}
+
+function signalDone() {
+  if (window._resolveSignal) {
+    const resolve = window._resolveSignal;
+    window._resolveSignal = null;
+    resolve();
+  }
+}
+
+// ==================== EVENT HANDLERS ====================
+
+btnStart.addEventListener('click', () => {
+  if (btnStart.textContent === 'Restart Scene') {
+    currentIndex = 0;
+  }
+  runScene();
+});
+
+btnDone.addEventListener('click', () => signalDone());
+
+btnPause.addEventListener('click', () => {
+  if (isPaused) {
+    isPaused = false;
+    btnPause.textContent = 'Pause';
+    speechSynthesis.resume();
+  } else {
+    isPaused = true;
+    btnPause.textContent = 'Resume';
+    speechSynthesis.pause();
+  }
+});
+
+btnSkip.addEventListener('click', () => {
+  speechSynthesis.cancel();
+  if (waitingForUser) signalDone();
+});
+
+btnStop.addEventListener('click', () => stopPlayback());
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (waitingForUser) {
+      signalDone();
+    } else if (!isRunning) {
+      if (btnStart.textContent === 'Restart Scene') currentIndex = 0;
+      runScene();
+    }
+  }
+  if (e.code === 'KeyP') btnPause.click();
+  if (e.code === 'KeyS' && !e.metaKey && !e.ctrlKey) btnSkip.click();
+  if (e.code === 'Escape') {
+    if (isRunning) stopPlayback();
+    else resetToScene();
+  }
+});
+
+// Scene selector
+sceneSelect.addEventListener('change', () => resetToScene());
+
+// Character selector - lead buttons
+document.querySelectorAll('#char-selector button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#char-selector button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    charOtherSelect.classList.remove('active');
+    charOtherSelect.value = '';
+    myCharacter = btn.dataset.char;
+    resetToScene();
+  });
+});
+
+// Character selector - other dropdown
+charOtherSelect.addEventListener('change', () => {
+  if (!charOtherSelect.value) return;
+  document.querySelectorAll('#char-selector button').forEach(b => b.classList.remove('active'));
+  charOtherSelect.classList.add('active');
+  myCharacter = charOtherSelect.value;
+  resetToScene();
+});
+
+// Speed display
+document.getElementById('speed').addEventListener('input', (e) => {
+  document.getElementById('speed-val').textContent = e.target.value + 'x';
+});
+document.getElementById('pause-dur').addEventListener('input', (e) => {
+  document.getElementById('pause-val').textContent = e.target.value + 's';
+});
+
+
+// ==================== INIT ====================
+
+async function init() {
+  await loadVoices();
+
+  allEntries = parseScript(SCRIPT_TEXT);
+
+  populateSceneDropdown();
+  populateOtherCharDropdown();
+
+  // Default: first scene
+  const firstScene = getScenes()[0];
+  if (firstScene) {
+    sceneSelect.value = firstScene.text;
+    filteredEntries = getEntriesForScene(firstScene.text);
+  } else {
+    filteredEntries = allEntries;
+  }
+  currentIndex = 0;
+
+  const lineCount = allEntries.filter(e => e.type === 'line').length;
+  const myCount = filteredEntries.filter(e => e.type === 'line' && isMyLine(e.character)).length;
+  const charName = myCharacter.charAt(0).toUpperCase() + myCharacter.slice(1);
+
+  document.getElementById('voice-loading').innerHTML =
+    `<strong>Ready!</strong><br>` +
+    `${lineCount} total lines | Playing as <strong>${charName}</strong><br>` +
+    `Select a scene and press <strong>Start</strong> or <strong>Space</strong>.`;
+
+  setStatus(`Pick a scene and press Start. Playing as ${charName}.`);
+}
+
+init();
+</script>
+
+</body>
+</html>
