@@ -4706,8 +4706,12 @@ function isStageDirection(line) {
   }
 
   // Only match lines that START with third-person stage direction patterns
+  // IMPORTANT: Pronouns (He/She/They/It/An) are NOT matched broadly — they must be
+  // followed by stage-direction action verbs to avoid eating dialogue lines.
+  const stageVerbs = '(?:walks?|enters?|exits?|runs?|moves?|stands?|sits?|gestures?|leaves?|scurries|storms?|bursts?|starts?|begins?|reveals?|appears?|disappears?|comes?|goes|turns?|looks?|pulls?|grabs?|takes?|puts?|picks?|pushes?|waves?|nods?|shakes?|rolls?|slumps?|strides?|rushes?|sneaks?|pops?|steps?|crosses?)';
   const directionPatterns = [
-    /^(?:The (?:lights|cameras|board|air|crowd|door|side|Xers|ETAs|Etas)|A (?:pipe|network|masked|delivery)|An |Our (?:protagonists|four)|Two new|They |He |She |It |Music |Sound |Timer |Applause|Enter |Exit |Lights |Spotlight)/i,
+    /^(?:The (?:lights|cameras|board|air|crowd|door|side|Xers|ETAs|Etas)|A (?:pipe|network|masked|delivery)|Our (?:protagonists|four)|Two new|Music |Sound |Timer |Applause|Enter |Exit |Lights |Spotlight)/i,
+    new RegExp('^(?:He |She |They |It |An? )' + stageVerbs, 'i'),
     /^(?:Mia |Sam |Leo |Andy |Dean |Steve |Reza |Nick |Vanessa |Kevin |Glenn |Fred |Lydia |Delilah |Denise |Tribe )[\w\s]*(?:walks|enters|exits|runs|moves|stands|sits|gestures|leaves|scurries|storms|bursts|starts|begins|reveals|appears|disappears|comes|goes|turns|looks|pulls|grabs|takes|puts|picks|pushes|waves|nods|shakes|rolls|slumps|strides|rushes)/i,
     /^(?:Scoreboard |Loud incorrect|The board |The cameras |The lights |DJ |A pipe )/i,
     /^(?:Beat for |ALARM|Blackout|Lights dim|Lights out)/i,
