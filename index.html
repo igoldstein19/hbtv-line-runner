@@ -4502,7 +4502,30 @@ function parseScript(text) {
       // Collect continuation lines
       while (i < lines.length) {
         const nextLine = lines[i].trim();
-        if (!nextLine) { i++; break; }
+
+        // On blank line: peek ahead to see if dialogue continues
+        if (!nextLine) {
+          // Look ahead past blank lines for the next non-empty line
+          let peekIdx = i + 1;
+          while (peekIdx < lines.length && !lines[peekIdx].trim()) peekIdx++;
+
+          if (peekIdx < lines.length) {
+            const peekLine = lines[peekIdx].trim();
+            // If the next content is a character name, structural element, or stage direction, stop here
+            if (tryMatchCharacter(peekLine) || /^Scene\s+\d+/i.test(peekLine) ||
+                /^\[Song:/i.test(peekLine) || /^_{5,}$/.test(peekLine) ||
+                /^Act\s+\d/i.test(peekLine) || /^Characters:/i.test(peekLine) ||
+                /^Location:/i.test(peekLine) || isStageDirection(peekLine)) {
+              i++;
+              break;
+            }
+            // Otherwise it's a continuation paragraph — skip blank lines and keep collecting
+            i++;
+            continue;
+          }
+          i++;
+          break;
+        }
 
         // If next line is a new character, scene, song, or structural element, stop
         if (tryMatchCharacter(nextLine)) break;
@@ -4672,16 +4695,22 @@ function extractDialogueFromCharLine(line, charName) {
 }
 
 function isStageDirection(line) {
-  // Heuristic: stage directions tend to describe actions, not be dialogue
-  // They often start with character actions described in third person
+  // Heuristic: stage directions are lines that describe actions, not dialogue.
+  // Key insight: if the line contains quoted speech OR starts with typical
+  // dialogue patterns (first/second person), it's NOT a stage direction.
+  // Stage directions are third-person descriptions of what's happening on stage.
+
+  // If it looks like dialogue (contains first/second person speech), it's NOT a stage direction
+  if (/^["']|^(I |I'm |We |We're |You |You're |My |Hey |Oh |Ah |Uh |Wow |Well |Thank|Please|Sorry|Okay|Yes|No |Sure|Hmm|Don't|Didn't|Doesn't|Isn't|Aren't|Won't|Can't|What |Why |How |Where |When |Who )/i.test(line)) {
+    return false;
+  }
+
+  // Only match lines that START with third-person stage direction patterns
   const directionPatterns = [
-    /^(?:The |A |An |Our |Two |They |He |She |Music |Sound |Timer |Applause|Enter |Exit |Lights |Spotlight)/i,
-    /^(?:.*walks |.*enters |.*exits |.*runs |.*moves |.*stands |.*sits |.*gestures)/i,
-    /^(?:.*starts |.*begins |.*reveals |.*appears |.*disappears)/i,
-    /^(?:.*leaves |.*scurries |.*storms |.*bursts )/i,
+    /^(?:The (?:lights|cameras|board|air|crowd|door|side|Xers|ETAs|Etas)|A (?:pipe|network|masked|delivery)|An |Our (?:protagonists|four)|Two new|They |He |She |It |Music |Sound |Timer |Applause|Enter |Exit |Lights |Spotlight)/i,
+    /^(?:Mia |Sam |Leo |Andy |Dean |Steve |Reza |Nick |Vanessa |Kevin |Glenn |Fred |Lydia |Delilah |Denise |Tribe )[\w\s]*(?:walks|enters|exits|runs|moves|stands|sits|gestures|leaves|scurries|storms|bursts|starts|begins|reveals|appears|disappears|comes|goes|turns|looks|pulls|grabs|takes|puts|picks|pushes|waves|nods|shakes|rolls|slumps|strides|rushes)/i,
     /^(?:Scoreboard |Loud incorrect|The board |The cameras |The lights |DJ |A pipe )/i,
     /^(?:Beat for |ALARM|Blackout|Lights dim|Lights out)/i,
-    /screams?\s/i,
     /^\-/,
   ];
 
