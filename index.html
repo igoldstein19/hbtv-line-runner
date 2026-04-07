@@ -5126,16 +5126,19 @@ async function runScene() {
     }
   }
 
-  if (isRunning && currentIndex >= filteredEntries.length) {
+  const wasRunning = isRunning;
+  isRunning = false;
+  showSpeakingDots(false);
+
+  if (wasRunning && currentIndex >= filteredEntries.length) {
+    // Finished the scene naturally
     setStatus('End of scene! Great job.', '');
     updateDisplay();
+    btnStart.style.display = 'flex';
+    btnStart.textContent = 'Restart Scene';
+    btnStop.disabled = true;
   }
-
-  isRunning = false;
-  btnStart.style.display = 'flex';
-  btnStart.textContent = 'Restart Scene';
-  btnStop.disabled = true;
-  showSpeakingDots(false);
+  // If stopped mid-scene, stopPlayback() already set the UI to "Resume"
 }
 
 function waitForSignal() {
